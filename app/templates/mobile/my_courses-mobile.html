@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#9B7CB6">
+    <title>我的课程 - {{ site_name }}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    
+    <!-- Mobile Mucha CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        /* 我的课程特定样式 */
+        .header-section {
+            padding: var(--space-lg);
+            background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+            padding-top: calc(var(--top-nav-height) + var(--space-lg));
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header-section::before {
+            content: '';
+            position: absolute;
+            top: -30%;
+            right: -10%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header-title {
+            font-family: var(--font-display);
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: var(--space-md);
+        }
+        
+        .stats-row {
+            display: flex;
+            gap: var(--space-lg);
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-item .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--mucha-gold-light);
+        }
+        
+        .stat-item .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 2px;
+        }
+        
+        .course-list {
+            padding: var(--space-md);
+        }
+        
+        .course-item {
+            display: flex;
+            gap: var(--space-md);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-md);
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border-color);
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+        }
+        
+        .course-item:active {
+            transform: scale(0.98);
+        }
+        
+        .course-item .item-thumb {
+            width: 120px;
+            height: 80px;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            flex-shrink: 0;
+            position: relative;
+        }
+        
+        .course-item .item-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .course-item .item-thumb .thumb-placeholder {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--mucha-purple-light) 0%, var(--mucha-mint-light) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: var(--mucha-purple);
+            font-weight: 700;
+        }
+        
+        .course-item .item-thumb .progress-badge {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .course-item .item-thumb .progress-fill {
+            height: 100%;
+            background: var(--mucha-gold);
+        }
+        
+        .course-item .item-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .course-item .item-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .course-item .item-progress {
+            margin-top: var(--space-sm);
+        }
+        
+        .course-item .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .course-item .progress-bar {
+            height: 4px;
+            background: var(--mucha-purple-light);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .course-item .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--mucha-purple) 0%, var(--mucha-gold) 100%);
+            border-radius: 2px;
+        }
+        
+        .course-item .continue-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: var(--space-sm);
+            padding: 4px 12px;
+            background: var(--mucha-gold-light);
+            border-radius: var(--radius-full);
+            font-size: 12px;
+            color: var(--mucha-purple-dark);
+        }
+        
+        /* 空状态 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-xl) var(--space-lg);
+            text-align: center;
+        }
+        
+        .empty-state i {
+            font-size: 80px;
+            color: var(--mucha-purple-light);
+            margin-bottom: var(--space-lg);
+        }
+        
+        .empty-state h3 {
+            font-family: var(--font-display);
+            font-size: 20px;
+            color: var(--mucha-purple-dark);
+            margin-bottom: var(--space-sm);
+        }
+        
+        .empty-state p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: var(--space-xl);
+        }
+        
+        .empty-state .explore-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-md) var(--space-xl);
+            background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+            color: white;
+            border-radius: var(--radius-full);
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(107, 78, 124, 0.3);
+        }
+        
+        .empty-state .explore-btn:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景 -->
+    <div class="mucha-bg"></div>
+    
+    <!-- 顶部导航 -->
+    <nav class="mucha-navbar" style="background: transparent; border: none;">
+        <a href="{{ url_for('mobile.mobile_dashboard') }}" class="nav-back" style="background: rgba(255,255,255,0.2); color: white;">
+            <i class="ph ph-arrow-left"></i>
+        </a>
+        <span class="nav-title" style="color: white;">
+            <i class="ph ph-book-bookmark"></i>
+            我的课程
+        </span>
+        <div style="width: 40px;"></div>
+    </nav>
+    
+    <!-- 主内容 -->
+    <div class="mucha-content no-navbar no-bottom-nav">
+        <!-- 头部区域 -->
+        <div class="header-section">
+            <div class="header-content">
+                <h1 class="header-title">我的课程</h1>
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ courses|length }}</div>
+                        <div class="stat-label">学习中</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ completed_count or 0 }}</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 课程列表 -->
+        <div class="course-list">
+            {% if courses %}
+                {% for item in courses %}
+                {% set course = item.course %}
+                {% set progress = item.progress %}
+                <a href="{{ url_for('mobile.mobile_course_detail', course_id=course.id) }}" class="course-item">
+                    <div class="item-thumb">
+                        {% if course.thumbnail_url %}
+                        <img src="{{ course.thumbnail_url }}" alt="{{ course.title }}" loading="lazy">
+                        {% else %}
+                        <div class="thumb-placeholder">{{ course.title[0] }}</div>
+                        {% endif %}
+                        <div class="progress-badge">
+                            <div class="progress-fill" style="width: {{ progress.percentage }}%"></div>
+                        </div>
+                    </div>
+                    <div class="item-content">
+                        <h3 class="item-title">{{ course.title }}</h3>
+                        <div class="item-progress">
+                            <div class="progress-info">
+                                <span>学习进度</span>
+                                <span>{{ "%.0f"|format(progress.percentage) }}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: {{ progress.percentage }}%"></div>
+                            </div>
+                        </div>
+                        <span class="continue-btn">
+                            <i class="ph ph-play-fill"></i>
+                            继续学习
+                        </span>
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="ph ph-book-bookmark"></i>
+                    <h3>暂无课程</h3>
+                    <p>还没有开始学习任何课程，快去探索吧 ✨</p>
+                    <a href="{{ url_for('mobile.mobile_courses') }}" class="explore-btn">
+                        <i class="ph ph-compass"></i>
+                        探索课程
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- 底部导航 -->
+    <nav class="mucha-bottom-nav">
+        <a href="{{ url_for('mobile.mobile_dashboard') }}" class="nav-item">
+            <i class="ph ph-house"></i>
+            <span>首页</span>
+        </a>
+        <a href="{{ url_for('mobile.mobile_courses') }}" class="nav-item">
+            <i class="ph ph-books"></i>
+            <span>课程</span>
+        </a>
+        <a href="{{ url_for('mobile.mobile_my_courses') }}" class="nav-item active">
+            <i class="ph ph-book-bookmark"></i>
+            <span>我的</span>
+        </a>
+        <a href="{{ url_for('mobile.mobile_history') }}" class="nav-item">
+            <i class="ph ph-clock-counter-clockwise"></i>
+            <span>历史</span>
+        </a>
+        <a href="{{ url_for('mobile.mobile_change_password') }}" class="nav-item">
+            <i class="ph ph-user"></i>
+            <span>我的</span>
+        </a>
+    </nav>
+    
+    <script>
+        // 获取CSRF Token
+        window.getCsrfToken = function() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        };
+    </script>
+</body>
+</html>

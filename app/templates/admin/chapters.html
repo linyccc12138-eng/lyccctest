@@ -1,0 +1,2114 @@
+{% extends 'base.html' %}
+
+{% block title %}章节管理 - {{ course.title }} - {{ site_name }}{% endblock %}
+
+{% block head %}
+<!-- Phosphor Icons -->
+<script src="/static/vendor/phosphor-icons/index.js"></script>
+{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-admin">
+    <div class="navbar-brand">
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="打开菜单">
+            <i class="ph ph-list"></i>
+        </button>
+        <a href="{{ url_for('admin.dashboard') }}">管理后台</a>
+    </div>
+    <div class="navbar-menu" id="navbarMenu">
+        <button class="mobile-menu-close" id="mobileMenuClose" aria-label="关闭菜单">
+            <i class="ph ph-x"></i>
+        </button>
+        <div class="navbar-menu-items">
+            <a href="{{ url_for('admin.users') }}" class="nav-link">
+                <i class="ph ph-users"></i>
+                <span>用户管理</span>
+            </a>
+            <a href="{{ url_for('admin.courses') }}" class="nav-link">
+                <i class="ph ph-book-open"></i>
+                <span>课程管理</span>
+            </a>
+            <a href="{{ url_for('admin.videos') }}" class="nav-link">
+                <i class="ph ph-video"></i>
+                <span>视频管理</span>
+            </a>
+            <a href="{{ url_for('admin.events') }}" class="nav-link">
+                <i class="ph ph-calendar"></i>
+                <span>事件管理</span>
+            </a>
+            <a href="{{ url_for('admin.logs') }}" class="nav-link">
+                <i class="ph ph-scroll"></i>
+                <span>日志管理</span>
+            </a>
+            <a href="{{ url_for('admin.locked') }}" class="nav-link">
+                <i class="ph ph-lock-key"></i>
+                <span>锁定管理</span>
+            </a>
+            <a href="{{ url_for('admin.system_config') }}" class="nav-link">
+                <i class="ph ph-gear"></i>
+                <span>系统配置</span>
+            </a>
+            <form action="{{ url_for('auth.logout') }}" method="post" id="logout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="nav-link" id="logout-btn">
+                    <i class="ph ph-sign-out"></i>
+                    <span>退出</span>
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="navbar-overlay" id="navbarOverlay"></div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="page-header">
+        <a href="{{ url_for('admin.courses') }}" class="back-link">
+            <i class="ph ph-arrow-left"></i>
+            <span>返回课程列表</span>
+        </a>
+        <h1>{{ course.title }} - 章节管理</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.course_detail', course_id=course.id) }}" class="btn btn-secondary">
+                <i class="ph ph-pencil-simple"></i>
+                <span>编辑课程</span>
+            </a>
+            <button class="btn btn-primary" onclick="showAddModal()">
+                <i class="ph ph-plus"></i>
+                <span>添加章节</span>
+            </button>
+        </div>
+    </div>
+
+    <h2 class="section-title">章节列表</h2>
+    
+    {% if chapters %}
+    <div class="chapter-list-admin">
+        {% for chapter in chapters %}
+        <div class="chapter-item-admin">
+            <div class="chapter-main">
+                <div class="chapter-info">
+                    <span class="chapter-order">{{ loop.index }}</span>
+                    {% if chapter.thumbnail_url %}
+                    <div class="chapter-thumbnail">
+                        <img src="{{ chapter.thumbnail_url }}" alt="{{ chapter.title }}" loading="lazy">
+                    </div>
+                    {% endif %}
+                    <div class="chapter-text">
+                        <h4>{{ chapter.title }}</h4>
+                        <p class="chapter-desc">{{ chapter.description or '' }}</p>
+                        
+                        <div class="chapter-status">
+                            {% if chapter.file_id %}
+                            <span class="badge badge-success">
+                                <i class="ph ph-check-circle"></i>
+                                <span>已上传视频</span>
+                            </span>
+                            <span class="file-id">FileId: {{ chapter.file_id }}</span>
+                            <span class="transcode-status-badge" data-chapter-id="{{ chapter.id }}" data-file-id="{{ chapter.file_id }}">
+                                <span class="status-loading">
+                                    <i class="ph ph-spinner ph-spin"></i> 加载中...
+                                </span>
+                            </span>
+                            {% else %}
+                            <span class="badge badge-warning">
+                                <i class="ph ph-warning-circle"></i>
+                                <span>未上传视频</span>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chapter-sort-actions">
+                    {% if not loop.first %}
+                    <button class="btn btn-sm btn-outline" onclick="moveChapter({{ chapter.id }}, 'up')" title="上移">
+                        <i class="ph ph-caret-up"></i>
+                    </button>
+                    {% endif %}
+                    {% if not loop.last %}
+                    <button class="btn btn-sm btn-outline" onclick="moveChapter({{ chapter.id }}, 'down')" title="下移">
+                        <i class="ph ph-caret-down"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="chapter-actions">
+                <button class="btn btn-sm btn-secondary" onclick="showEditModal({{ chapter.id }}, '{{ chapter.title }}', '{{ chapter.description or '' }}', '{{ chapter.file_id or '' }}')">
+                    <i class="ph ph-pencil-simple"></i>
+                    <span>编辑</span>
+                </button>
+                <button class="btn btn-sm btn-primary" onclick="showUploadModal({{ chapter.id }})">
+                    <i class="ph ph-upload-simple"></i>
+                    <span>上传视频</span>
+                </button>
+                <button class="btn btn-sm btn-info" onclick="showSelectVideoModal({{ chapter.id }})">
+                    <i class="ph ph-film-strip"></i>
+                    <span>选择视频</span>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="showDeleteModal({{ chapter.id }}, '{{ chapter.title }}', '{{ chapter.file_id or '' }}')">
+                    <i class="ph ph-trash"></i>
+                    <span>删除</span>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="ph ph-playlist"></i>
+        </div>
+        <p>暂无章节，请添加</p>
+        <button class="btn btn-primary" onclick="showAddModal()">
+            <i class="ph ph-plus"></i>
+            <span>添加章节</span>
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 添加章节模态框 -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="ph ph-plus-circle"></i> 添加章节</h3>
+            <button class="close-btn" onclick="hideAddModal()" aria-label="关闭">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ url_for('admin.add_chapter', course_id=course.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label>章节标题 <span class="required">*</span></label>
+                <input type="text" name="title" required placeholder="请输入章节标题">
+            </div>
+            
+            <div class="form-group">
+                <label>章节简介</label>
+                <textarea name="description" rows="3" placeholder="请输入章节简介（可选）"></textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideAddModal()">取消</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="ph ph-check"></i>
+                    <span>保存</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑章节模态框 -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="ph ph-pencil-simple"></i> 编辑章节</h3>
+            <button class="close-btn" onclick="hideEditModal()" aria-label="关闭">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <form id="editForm" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label>章节标题 <span class="required">*</span></label>
+                <input type="text" name="title" id="editTitle" required placeholder="请输入章节标题">
+            </div>
+            
+            <div class="form-group">
+                <label>章节简介</label>
+                <textarea name="description" id="editDescription" rows="3" placeholder="请输入章节简介（可选）"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>腾讯云FileId</label>
+                <input type="text" name="file_id" id="editFileId" placeholder="上传视频后自动生成" readonly>
+            </div>
+            
+            <div class="form-group">
+                <label>缩略图</label>
+                <div class="file-input-wrapper">
+                    <input type="file" name="thumbnail" accept="image/*" id="editThumbnail">
+                    <label for="editThumbnail" class="file-input-label">
+                        <i class="ph ph-image"></i>
+                        <span>选择图片</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideEditModal()">取消</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="ph ph-check"></i>
+                    <span>保存</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 上传视频模态框 -->
+<div id="uploadModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="ph ph-upload-simple"></i> 上传视频</h3>
+            <button class="close-btn" onclick="hideUploadModal()" aria-label="关闭">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="upload-info-box">
+                <i class="ph ph-info"></i>
+                <p>视频将上传至腾讯云VOD，并自动转码为HLS私有加密格式</p>
+            </div>
+            
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>选择视频文件 <span class="required">*</span></label>
+                    <div class="file-input-wrapper">
+                        <input type="file" name="video" id="videoFile" accept="video/*" required>
+                        <label for="videoFile" class="file-input-label">
+                            <i class="ph ph-video-camera"></i>
+                            <span>选择视频文件</span>
+                        </label>
+                        <span class="file-name" id="selectedFileName"></span>
+                    </div>
+                    <p class="form-hint">支持 MP4, AVI, MOV 等格式，最大 50MB</p>
+                </div>
+                
+                <div class="upload-progress" style="display:none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="uploadProgress"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span id="uploadStatus">正在上传...</span>
+                        <span class="progress-percent" id="uploadPercent">0%</span>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideUploadModal()">取消</button>
+            <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadVideo()">
+                <i class="ph ph-upload-simple"></i>
+                <span>开始上传</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 选择已上传视频模态框 -->
+<div id="selectVideoModal" class="modal">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h3><i class="ph ph-film-strip"></i> 选择已上传的视频</h3>
+            <button class="close-btn" onclick="hideSelectVideoModal()" aria-label="关闭">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="video-selection-layout">
+                <!-- 左侧文件夹树 -->
+                <div class="folder-sidebar">
+                    <div class="folder-header">
+                        <h4><i class="ph ph-folders"></i> 文件夹</h4>
+                    </div>
+                    <div class="folder-tree" id="selectVideoFolderTree">
+                        <div class="loading">
+                            <i class="ph ph-spinner ph-spin"></i>
+                            <span>加载中...</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- 右侧视频列表 -->
+                <div class="video-list-container">
+                    <div class="breadcrumb" id="selectVideoBreadcrumb">
+                        <span class="breadcrumb-item">
+                            <i class="ph ph-info"></i> 请选择一个文件夹
+                        </span>
+                    </div>
+                    <div id="videoList" class="video-grid">
+                        <div class="empty-text">
+                            <i class="ph ph-folder-open"></i>
+                            <span>请从左侧选择文件夹</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideSelectVideoModal()">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 删除章节确认模态框 -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3><i class="ph ph-trash"></i> 删除章节</h3>
+            <button class="close-btn" onclick="hideDeleteModal()" aria-label="关闭">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="confirm-message">
+                <i class="ph ph-warning-circle warning-icon"></i>
+                <p>确定要删除章节 <strong id="deleteChapterTitle"></strong> 吗？</p>
+            </div>
+            <div id="deleteVideoOption" class="delete-video-option" style="display:none;">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="deleteVideoCheckbox">
+                    <span class="checkmark"></span>
+                    <span class="label-text">同时删除腾讯云上的视频文件</span>
+                </label>
+                <p class="text-muted">注意：删除视频文件后，其他引用此视频的章节也将无法播放</p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideDeleteModal()">取消</button>
+            <button type="button" class="btn btn-danger" onclick="confirmDeleteChapter()">
+                <i class="ph ph-trash"></i>
+                <span>删除</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 自定义居中消息弹窗 -->
+<div id="customAlertModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3 id="customAlertTitle">
+                <i class="ph ph-info"></i> 提示
+            </h3>
+            <button class="close-btn" onclick="hideCustomAlert()" aria-label="关闭">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body text-center">
+            <div class="alert-icon">
+                <i class="ph ph-info"></i>
+            </div>
+            <p id="customAlertMessage"></p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-primary" onclick="hideCustomAlert()">
+                <i class="ph ph-check"></i>
+                <span>确定</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 自定义居中确认弹窗 -->
+<div id="customConfirmModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3 id="customConfirmTitle">
+                <i class="ph ph-question"></i> 确认
+            </h3>
+            <button class="close-btn" onclick="hideCustomConfirm(false)" aria-label="关闭">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body text-center">
+            <div class="confirm-icon">
+                <i class="ph ph-question"></i>
+            </div>
+            <p id="customConfirmMessage"></p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideCustomConfirm(false)">
+                <i class="ph ph-x"></i>
+                <span>取消</span>
+            </button>
+            <button type="button" class="btn btn-primary" onclick="hideCustomConfirm(true)">
+                <i class="ph ph-check"></i>
+                <span>确定</span>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    var currentChapterId = null;
+    var deleteChapterId = null;
+    var deleteFileId = null;
+    
+    // 移动端菜单切换
+    document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const mobileMenuClose = document.getElementById('mobileMenuClose');
+        const navbarMenu = document.getElementById('navbarMenu');
+        const navbarOverlay = document.getElementById('navbarOverlay');
+        
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', function() {
+                navbarMenu.classList.add('show');
+                navbarOverlay.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            });
+        }
+        
+        if (mobileMenuClose) {
+            mobileMenuClose.addEventListener('click', closeMobileMenu);
+        }
+        
+        if (navbarOverlay) {
+            navbarOverlay.addEventListener('click', closeMobileMenu);
+        }
+        
+        function closeMobileMenu() {
+            navbarMenu.classList.remove('show');
+            navbarOverlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        // 文件选择显示文件名
+        const videoFileInput = document.getElementById('videoFile');
+        const selectedFileName = document.getElementById('selectedFileName');
+        if (videoFileInput && selectedFileName) {
+            videoFileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    selectedFileName.textContent = this.files[0].name;
+                } else {
+                    selectedFileName.textContent = '';
+                }
+            });
+        }
+    });
+    
+    function showAddModal() {
+        document.getElementById('addModal').classList.add('show');
+    }
+
+    function hideAddModal() {
+        document.getElementById('addModal').classList.remove('show');
+    }
+
+    function showEditModal(id, title, description, fileId) {
+        document.getElementById('editForm').action = '/admin/chapters/' + id + '/edit';
+        document.getElementById('editTitle').value = title;
+        document.getElementById('editDescription').value = description;
+        document.getElementById('editFileId').value = fileId;
+        document.getElementById('editModal').classList.add('show');
+    }
+
+    function hideEditModal() {
+        document.getElementById('editModal').classList.remove('show');
+    }
+
+    function moveChapter(chapterId, direction) {
+        fetch('/admin/chapters/' + chapterId + '/move', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: JSON.stringify({ direction: direction })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                showCustomAlert('移动失败: ' + (data.error || '未知错误'), '移动失败');
+            }
+        })
+        .catch(function(error) {
+            showCustomAlert('移动出错: ' + error, '错误');
+        });
+    }
+
+    function showUploadModal(chapterId) {
+        currentChapterId = chapterId;
+        document.getElementById('uploadModal').classList.add('show');
+        document.getElementById('uploadForm').reset();
+        document.querySelector('.upload-progress').style.display = 'none';
+        document.getElementById('selectedFileName').textContent = '';
+        document.getElementById('uploadPercent').textContent = '0%';
+    }
+
+    function hideUploadModal() {
+        document.getElementById('uploadModal').classList.remove('show');
+        currentChapterId = null;
+    }
+
+    function showSelectVideoModal(chapterId) {
+        currentChapterId = chapterId;
+        document.getElementById('selectVideoModal').classList.add('show');
+        loadVodFiles();
+    }
+
+    function hideSelectVideoModal() {
+        document.getElementById('selectVideoModal').classList.remove('show');
+        currentChapterId = null;
+    }
+
+    function showDeleteModal(chapterId, title, fileId) {
+        deleteChapterId = chapterId;
+        deleteFileId = fileId;
+        document.getElementById('deleteChapterTitle').textContent = title;
+
+        var videoOption = document.getElementById('deleteVideoOption');
+        if (fileId) {
+            videoOption.style.display = 'block';
+            document.getElementById('deleteVideoCheckbox').checked = false;
+        } else {
+            videoOption.style.display = 'none';
+        }
+
+        document.getElementById('deleteModal').classList.add('show');
+    }
+
+    function hideDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('show');
+        deleteChapterId = null;
+        deleteFileId = null;
+    }
+    
+    var customConfirmCallback = null;
+    
+    function showCustomAlert(message, title) {
+        title = title || '提示';
+        document.getElementById('customAlertTitle').innerHTML = '<i class="ph ph-info"></i> ' + title;
+        document.getElementById('customAlertMessage').textContent = message;
+        document.getElementById('customAlertModal').classList.add('show');
+    }
+    
+    function hideCustomAlert() {
+        document.getElementById('customAlertModal').classList.remove('show');
+    }
+    
+    function showCustomConfirm(message, callback, title) {
+        title = title || '确认';
+        customConfirmCallback = callback;
+        document.getElementById('customConfirmTitle').innerHTML = '<i class="ph ph-question"></i> ' + title;
+        document.getElementById('customConfirmMessage').textContent = message;
+        document.getElementById('customConfirmModal').classList.add('show');
+    }
+    
+    function hideCustomConfirm(result) {
+        document.getElementById('customConfirmModal').classList.remove('show');
+        if (customConfirmCallback) {
+            customConfirmCallback(result);
+            customConfirmCallback = null;
+        }
+    }
+    
+    function confirmDeleteChapter() {
+        if (!deleteChapterId) return;
+        
+        var deleteVideo = document.getElementById('deleteVideoCheckbox').checked;
+        var formData = new FormData();
+        formData.append('delete_video', deleteVideo);
+        
+        fetch('/admin/chapters/' + deleteChapterId + '/delete', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: formData
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success !== false) {
+                location.reload();
+            } else {
+                showCustomAlert(data.error || '删除失败', '删除失败');
+            }
+        })
+        .catch(function() {
+            location.reload();
+        });
+    }
+    
+    var currentSelectFolderId = null;
+
+    function loadVodFiles() {
+        loadSelectVideoFolders();
+        document.getElementById('videoList').innerHTML = '<div class="empty-text"><i class="ph ph-folder-open"></i><span>请从左侧选择文件夹</span></div>';
+        document.getElementById('selectVideoBreadcrumb').innerHTML = '<span class="breadcrumb-item"><i class="ph ph-info"></i> 请选择一个文件夹</span>';
+    }
+
+    function loadSelectVideoFolders() {
+        var treeContainer = document.getElementById('selectVideoFolderTree');
+        treeContainer.innerHTML = '<div class="loading"><i class="ph ph-spinner ph-spin"></i><span>加载中...</span></div>';
+
+        fetch('/admin/api/folders/tree')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                renderSelectVideoFolderTree(data.tree, treeContainer);
+            } else {
+                treeContainer.innerHTML = '<div class="empty-folder"><i class="ph ph-warning-circle"></i> 加载失败</div>';
+            }
+        })
+        .catch(function(error) {
+            treeContainer.innerHTML = '<div class="empty-folder"><i class="ph ph-warning-circle"></i> 加载失败: ' + error + '</div>';
+        });
+    }
+
+    function renderSelectVideoFolderTree(folders, container, level) {
+        level = level || 0;
+        container.innerHTML = '';
+
+        if (folders.length === 0 && level === 0) {
+            container.innerHTML = '<div class="empty-folder"><i class="ph ph-folder-open"></i> 暂无文件夹</div>';
+            return;
+        }
+
+        folders.forEach(function(folder) {
+            var item = document.createElement('div');
+            item.className = 'folder-item';
+            item.setAttribute('data-id', folder.id);
+            item.setAttribute('data-name', folder.name);
+
+            var padding = level * 15;
+            var hasChildren = folder.children && folder.children.length > 0;
+            var expandIcon = hasChildren ? '<i class="ph ph-caret-right"></i>' : '';
+
+            item.innerHTML =
+                '<div class="folder-item-content" style="padding-left:' + padding + 'px" onclick="selectVideoFolder(' + folder.id + ', \'' + escapeJs(folder.name) + '\')">' +
+                    '<span class="folder-expand-icon" onclick="toggleSelectFolder(event, ' + folder.id + ')" style="visibility:' + (hasChildren ? 'visible' : 'hidden') + '">' + expandIcon + '</span>' +
+                    '<span class="folder-icon"><i class="ph ph-folder"></i></span>' +
+                    '<span class="folder-name">' + escapeHtml(folder.name) + '</span>' +
+                '</div>' +
+                '<div class="folder-children" id="select-folder-children-' + folder.id + '" style="display:none;"></div>';
+
+            container.appendChild(item);
+
+            if (folder.children && folder.children.length > 0) {
+                var childrenContainer = item.querySelector('#select-folder-children-' + folder.id);
+                renderSelectVideoFolderTree(folder.children, childrenContainer, level + 1);
+            }
+        });
+    }
+
+    function toggleSelectFolder(event, folderId) {
+        event.stopPropagation();
+        var childrenDiv = document.getElementById('select-folder-children-' + folderId);
+        var icon = event.currentTarget.querySelector('i');
+        if (childrenDiv.style.display === 'none') {
+            childrenDiv.style.display = 'block';
+            icon.classList.remove('ph-caret-right');
+            icon.classList.add('ph-caret-down');
+        } else {
+            childrenDiv.style.display = 'none';
+            icon.classList.remove('ph-caret-down');
+            icon.classList.add('ph-caret-right');
+        }
+    }
+
+    function selectVideoFolder(folderId, folderName) {
+        currentSelectFolderId = folderId;
+
+        document.querySelectorAll('#selectVideoFolderTree .folder-item').forEach(function(item) {
+            item.classList.remove('active');
+        });
+        var selectedItem = document.querySelector('#selectVideoFolderTree .folder-item[data-id="' + folderId + '"]');
+        if (selectedItem) {
+            selectedItem.classList.add('active');
+        }
+
+        document.getElementById('selectVideoBreadcrumb').innerHTML =
+            '<span class="breadcrumb-item"><i class="ph ph-folder"></i> ' + escapeHtml(folderName) + '</span>';
+
+        loadVideosByFolder(folderId);
+    }
+
+    function loadVideosByFolder(folderId) {
+        var videoList = document.getElementById('videoList');
+        videoList.innerHTML = '<div class="loading"><i class="ph ph-spinner ph-spin"></i><span>正在加载视频列表...</span></div>';
+
+        fetch('/admin/api/videos?folder_id=' + folderId + '&per_page=100')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success && data.videos.length > 0) {
+                var validVideos = data.videos.filter(function(video) {
+                    return video.status !== 'deleting' && video.status !== 'deleted';
+                });
+
+                if (validVideos.length === 0) {
+                    videoList.innerHTML = '<div class="empty-text"><i class="ph ph-video-slash"></i> 该文件夹下没有可用的视频文件</div>';
+                    return;
+                }
+
+                var html = '';
+                validVideos.forEach(function(video) {
+                    var duration = video.duration ? Math.floor(video.duration) + '秒' : '未知时长';
+                    var size = video.size ? formatFileSize(video.size) : '未知大小';
+                    var transcodeStatus = '';
+                    if (video.transcode_status === 'success') {
+                        transcodeStatus = '<span class="status-badge success"><i class="ph ph-check-circle"></i> 转码成功</span>';
+                    } else if (video.transcode_status === 'processing') {
+                        transcodeStatus = '<span class="status-badge processing"><i class="ph ph-spinner ph-spin"></i> 转码中</span>';
+                    } else if (video.transcode_status === 'failed') {
+                        transcodeStatus = '<span class="status-badge failed"><i class="ph ph-x-circle"></i> 转码失败</span>';
+                    }
+
+                    var coverUrl = video.cover_url;
+
+                    html += '<div class="video-item" onclick="selectVideo(\'' + video.file_id + '\')">';
+                    if (coverUrl) {
+                        html += '<div class="video-cover"><img src="' + coverUrl + '" alt="封面" loading="lazy"></div>';
+                    } else {
+                        html += '<div class="video-icon"><i class="ph ph-film-strip"></i></div>';
+                    }
+                    html += '<div class="video-info">';
+                    html += '<h4>' + (video.file_name || video.title || '未命名') + '</h4>';
+                    html += '<p>FileId: ' + (video.file_id || '-') + '</p>';
+                    html += '<p>' + duration + ' | ' + size + '</p>';
+                    html += '<p>' + transcodeStatus + '</p>';
+                    html += '</div>';
+                    html += '</div>';
+                });
+                videoList.innerHTML = html;
+            } else if (data.success) {
+                videoList.innerHTML = '<div class="empty-text"><i class="ph ph-video-slash"></i> 该文件夹下暂无视频文件</div>';
+            } else {
+                videoList.innerHTML = '<div class="error-text"><i class="ph ph-warning-circle"></i> 加载失败：' + (data.error || '未知错误') + '</div>';
+            }
+        })
+        .catch(function(error) {
+            videoList.innerHTML = '<div class="error-text"><i class="ph ph-warning-circle"></i> 加载失败：' + error + '</div>';
+        });
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes || bytes === 0) return '-';
+        var k = 1024;
+        var sizes = ['B', 'KB', 'MB', 'GB'];
+        var i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function escapeJs(text) {
+        return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+    }
+    
+    function selectVideo(fileId) {
+        if (!currentChapterId || !fileId) return;
+        
+        showCustomConfirm('确定要将此视频关联到当前章节吗？', function(confirmed) {
+            if (!confirmed) return;
+            
+            doSelectVideo(fileId);
+        }, '确认关联');
+    }
+    
+    function doSelectVideo(fileId) {
+        if (!currentChapterId || !fileId) return;
+        
+        var formData = new FormData();
+        formData.append('file_id', fileId);
+        
+        fetch('/admin/chapters/' + currentChapterId + '/select-video', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: formData
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showCustomAlert('视频选择成功！', '成功');
+                setTimeout(function() { location.reload(); }, 500);
+            } else {
+                showCustomAlert('选择失败：' + (data.error || '未知错误'), '错误');
+            }
+        })
+        .catch(function(error) {
+            showCustomAlert('选择失败：' + error, '错误');
+        });
+    }
+    
+    function uploadVideo() {
+        var fileInput = document.getElementById('videoFile');
+        var file = fileInput.files[0];
+        
+        if (!file) {
+            showCustomAlert('请选择视频文件', '提示');
+            return;
+        }
+        
+        if (file.size > 50 * 1024 * 1024) {
+            showCustomAlert('文件大小超过50MB限制，请使用分片上传或联系管理员', '提示');
+            return;
+        }
+        
+        var formData = new FormData();
+        formData.append('video', file);
+        
+        document.querySelector('.upload-progress').style.display = 'block';
+        document.getElementById('uploadBtn').disabled = true;
+        document.getElementById('uploadStatus').textContent = '正在上传到服务器，请耐心等待...';
+        document.getElementById('uploadProgress').style.width = '10%';
+        document.getElementById('uploadPercent').textContent = '准备上传...';
+        
+        // 动态进度模拟（因为同步上传无法获取真实进度）
+        var progress = 10;
+        var progressInterval = setInterval(function() {
+            if (progress < 90) {
+                progress += Math.random() * 5;
+                if (progress > 90) progress = 90;
+                document.getElementById('uploadProgress').style.width = progress + '%';
+                document.getElementById('uploadPercent').textContent = '上传中 ' + Math.floor(progress) + '%';
+            }
+        }, 2000);
+        
+        // 设置超时时间为8分钟（480秒）
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function() {
+            controller.abort();
+        }, 480000);
+        
+        fetch('/admin/chapters/' + currentChapterId + '/upload-video', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: formData,
+            signal: controller.signal
+        })
+        .then(function(r) { 
+            clearTimeout(timeoutId);
+            clearInterval(progressInterval);
+            
+            if (r.status === 413) {
+                throw new Error('文件过大，请使用分片上传方式或联系管理员调整服务器配置');
+            }
+            if (r.status === 504) {
+                throw new Error('上传超时，文件可能较大请稍后再试，或联系管理员');
+            }
+            if (!r.ok) {
+                throw new Error('服务器错误 (HTTP ' + r.status + ')');
+            }
+            return r.json(); 
+        })
+        .then(function(data) {
+            if (data.success) {
+                document.getElementById('uploadStatus').textContent = '上传成功！正在转码...';
+                document.getElementById('uploadProgress').style.width = '100%';
+                document.getElementById('uploadPercent').textContent = '100%';
+                startPollingTranscodeStatus(currentChapterId);
+                setTimeout(function() {
+                    location.reload();
+                }, 3000);
+            } else {
+                document.getElementById('uploadStatus').textContent = '上传失败: ' + (data.error || '未知错误');
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        })
+        .catch(function(error) {
+            clearInterval(progressInterval);
+            if (error.name === 'AbortError') {
+                document.getElementById('uploadStatus').textContent = '上传超时，请刷新页面检查是否上传成功';
+            } else if (error.message.includes('JSON') || error.message.includes('<')) {
+                document.getElementById('uploadStatus').textContent = '服务器响应错误，请刷新页面检查上传状态';
+            } else {
+                document.getElementById('uploadStatus').textContent = '上传出错: ' + error.message;
+            }
+            document.getElementById('uploadBtn').disabled = false;
+        });
+    }
+    
+    var transcodeStatusMap = {
+        'pending': { text: '等待转码', class: 'status-pending', icon: 'ph-hourglass' },
+        'processing': { text: '转码中', class: 'status-processing', icon: 'ph-spinner ph-spin' },
+        'success': { text: '转码成功', class: 'status-success', icon: 'ph-check-circle' },
+        'failed': { text: '转码失败', class: 'status-failed', icon: 'ph-x-circle' },
+        'none': { text: '未上传', class: 'status-none', icon: 'ph-circle' }
+    };
+    
+    function refreshChapterStatus(chapterId, fileId) {
+        var statusBadge = document.querySelector('.transcode-status-badge[data-chapter-id="' + chapterId + '"]');
+        if (!statusBadge || !fileId) return;
+        
+        fetch('/admin/api/chapter/' + chapterId + '/sync-status')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var status = transcodeStatusMap[data.status] || { text: '未知', class: 'status-unknown', icon: 'ph-question' };
+                    statusBadge.innerHTML = '<span class="' + status.class + '" title="' + (data.message || '') + '"><i class="ph ' + status.icon + '"></i> ' + status.text + '</span>';
+                } else {
+                    statusBadge.innerHTML = '<span class="status-failed"><i class="ph ph-x-circle"></i> 查询失败</span>';
+                }
+            })
+            .catch(function(error) {
+                statusBadge.innerHTML = '<span class="status-failed"><i class="ph ph-x-circle"></i> 查询出错</span>';
+            });
+    }
+    
+    function startPollingTranscodeStatus(chapterId) {
+        var pollCount = 0;
+        var maxPolls = 60;
+
+        var interval = setInterval(function() {
+            pollCount++;
+            if (pollCount > maxPolls) {
+                console.log('[ChapterMonitor] 转码监控超时: chapterId=' + chapterId);
+                clearInterval(interval);
+                return;
+            }
+
+            refreshChapterStatus(chapterId, null);
+
+            var statusBadge = document.querySelector('.transcode-status-badge[data-chapter-id="' + chapterId + '"]');
+            if (statusBadge) {
+                var text = statusBadge.textContent;
+                if (text.includes('成功') || text.includes('失败')) {
+                    console.log('[ChapterMonitor] 转码完成: chapterId=' + chapterId);
+                    clearInterval(interval);
+                    setTimeout(function() {
+                        location.reload();
+                    }, 2000);
+                }
+            }
+        }, 10000);
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        var badges = document.querySelectorAll('.transcode-status-badge');
+        badges.forEach(function(badge) {
+            var chapterId = badge.getAttribute('data-chapter-id');
+            var fileId = badge.getAttribute('data-file-id');
+            if (chapterId && fileId) {
+                refreshChapterStatus(chapterId, fileId);
+            }
+        });
+    });
+    
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.classList.remove('show');
+        }
+    }
+</script>
+
+<style>
+    /* ==================== 基础变量 ==================== */
+    :root {
+        --primary-color: #007bff;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --danger-color: #dc3545;
+        --warning-color: #ffc107;
+        --info-color: #17a2b8;
+        --bg-color: #f5f6f8;
+        --card-bg: #ffffff;
+        --text-primary: #212529;
+        --text-secondary: #6c757d;
+        --border-color: #dee2e6;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+        --radius-sm: 6px;
+        --radius-md: 12px;
+        --transition: all 0.3s ease;
+    }
+
+    /* ==================== 导航栏样式 ==================== */
+    .navbar-admin {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 0 20px;
+        box-shadow: var(--shadow-sm);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .navbar-brand a {
+        color: white;
+        font-size: 1.25rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    /* 移动端菜单按钮 */
+    .mobile-menu-toggle {
+        display: none;
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .mobile-menu-close {
+        display: none;
+        background: none;
+        border: none;
+        color: var(--text-primary);
+        font-size: 1.5rem;
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        cursor: pointer;
+    }
+
+    .navbar-menu-items {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .navbar-menu .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(255,255,255,0.9);
+        text-decoration: none;
+        padding: 10px 14px;
+        border-radius: var(--radius-sm);
+        transition: var(--transition);
+        font-size: 0.9rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+
+    .navbar-menu .nav-link:hover {
+        background: rgba(255,255,255,0.15);
+        color: white;
+    }
+
+    .navbar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 998;
+    }
+
+    .navbar-overlay.show {
+        display: block;
+    }
+
+    /* ==================== 页面容器 ==================== */
+    .admin-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+
+    /* ==================== 页面头部 ==================== */
+    .page-header {
+        margin-bottom: 24px;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--primary-color);
+        text-decoration: none;
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+        transition: var(--transition);
+    }
+
+    .back-link:hover {
+        color: #0056b3;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0 0 16px 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 24px 0 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    /* ==================== 按钮样式 ==================== */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 18px;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #0056b3;
+    }
+
+    .btn-secondary {
+        background: var(--secondary-color);
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #545b62;
+    }
+
+    .btn-danger {
+        background: var(--danger-color);
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c82333;
+    }
+
+    .btn-info {
+        background: var(--info-color);
+        color: white;
+    }
+
+    .btn-info:hover {
+        background: #138496;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    /* ==================== 章节列表 ==================== */
+    .chapter-list-admin {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .chapter-item-admin {
+        background: var(--card-bg);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+    }
+
+    .chapter-item-admin:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .chapter-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .chapter-info {
+        flex: 1;
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .chapter-order {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .chapter-thumbnail {
+        width: 120px;
+        height: 80px;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        background: var(--bg-color);
+        flex-shrink: 0;
+    }
+
+    .chapter-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .chapter-text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .chapter-text h4 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0 0 8px 0;
+    }
+
+    .chapter-desc {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin: 0 0 12px 0;
+        line-height: 1.5;
+    }
+
+    .chapter-status {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .badge-warning {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .file-id {
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        background: var(--bg-color);
+        padding: 2px 8px;
+        border-radius: 4px;
+    }
+
+    .chapter-sort-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .chapter-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    /* ==================== 空状态 ==================== */
+    .empty-state {
+        text-align: center;
+        padding: 60px 24px;
+        background: var(--card-bg);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: var(--border-color);
+        margin-bottom: 16px;
+    }
+
+    .empty-state p {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        margin: 0 0 24px 0;
+    }
+
+    /* ==================== 弹窗样式 ==================== */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        overflow: auto;
+        padding: 20px;
+    }
+
+    .modal.show {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background-color: var(--card-bg);
+        border-radius: var(--radius-md);
+        width: 100%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            transform: translateY(-30px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-content.modal-lg {
+        max-width: 900px;
+    }
+
+    .modal-content.modal-sm {
+        max-width: 400px;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        transition: var(--transition);
+    }
+
+    .close-btn:hover {
+        background: var(--bg-color);
+        color: var(--text-primary);
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding: 16px 20px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    /* ==================== 表单样式 ==================== */
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+    }
+
+    .form-group .required {
+        color: var(--danger-color);
+    }
+
+    .form-group input[type="text"],
+    .form-group textarea {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        font-size: 0.95rem;
+        transition: var(--transition);
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+    }
+
+    .form-group input[readonly] {
+        background: var(--bg-color);
+        cursor: not-allowed;
+    }
+
+    .file-input-wrapper {
+        position: relative;
+    }
+
+    .file-input-wrapper input[type="file"] {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    .file-input-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 24px;
+        border: 2px dashed var(--border-color);
+        border-radius: var(--radius-sm);
+        color: var(--text-secondary);
+        transition: var(--transition);
+        cursor: pointer;
+    }
+
+    .file-input-wrapper:hover .file-input-label {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .file-name {
+        display: block;
+        margin-top: 8px;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .form-hint {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin: 8px 0 0 0;
+    }
+
+    /* ==================== 上传进度 ==================== */
+    .upload-info-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        background: #e7f3ff;
+        padding: 16px;
+        border-radius: var(--radius-sm);
+        margin-bottom: 20px;
+    }
+
+    .upload-info-box i {
+        font-size: 1.25rem;
+        color: var(--primary-color);
+    }
+
+    .upload-info-box p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+    }
+
+    .upload-progress {
+        margin-top: 16px;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: var(--bg-color);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    /* ==================== 视频选择模态框 ==================== */
+    .video-selection-layout {
+        display: flex;
+        gap: 20px;
+        min-height: 400px;
+    }
+
+    .folder-sidebar {
+        width: 220px;
+        background: var(--bg-color);
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .folder-header h4 {
+        margin: 0 0 12px 0;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .folder-tree {
+        font-size: 0.85rem;
+    }
+
+    .folder-item {
+        margin: 2px 0;
+    }
+
+    .folder-item-content {
+        display: flex;
+        align-items: center;
+        padding: 8px 6px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .folder-item-content:hover {
+        background: rgba(0,0,0,0.05);
+    }
+
+    .folder-item.active .folder-item-content {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .folder-expand-icon {
+        width: 18px;
+        text-align: center;
+        margin-right: 4px;
+        font-size: 0.7rem;
+    }
+
+    .folder-icon {
+        margin-right: 6px;
+        color: #ffc107;
+    }
+
+    .folder-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .folder-children {
+        margin-left: 8px;
+    }
+
+    .video-list-container {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .breadcrumb {
+        padding: 12px 16px;
+        background: var(--bg-color);
+        border-radius: var(--radius-sm);
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .video-grid {
+        display: grid;
+        gap: 12px;
+    }
+
+    .video-item {
+        display: flex;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .video-item:hover {
+        background: var(--bg-color);
+        border-color: var(--primary-color);
+    }
+
+    .video-cover {
+        width: 100px;
+        height: 75px;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        background: var(--bg-color);
+        flex-shrink: 0;
+    }
+
+    .video-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .video-icon {
+        width: 100px;
+        height: 75px;
+        font-size: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-color);
+        border-radius: var(--radius-sm);
+        flex-shrink: 0;
+        color: var(--text-secondary);
+    }
+
+    .video-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .video-info h4 {
+        margin: 0 0 6px 0;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .video-info p {
+        margin: 2px 0;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+    }
+
+    .status-badge.success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-badge.processing {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-badge.failed {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    /* ==================== 删除确认弹窗 ==================== */
+    .confirm-message {
+        text-align: center;
+        padding: 20px 0;
+    }
+
+    .confirm-message .warning-icon {
+        font-size: 3rem;
+        color: var(--warning-color);
+    }
+
+    .confirm-message p {
+        margin: 16px 0 0 0;
+        font-size: 1rem;
+    }
+
+    .delete-video-option {
+        margin-top: 16px;
+        padding: 16px;
+        background: #fff3cd;
+        border-radius: var(--radius-sm);
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        display: none;
+    }
+
+    .checkmark {
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--secondary-color);
+        border-radius: 3px;
+        position: relative;
+        transition: var(--transition);
+    }
+
+    .checkbox-label input[type="checkbox"]:checked + .checkmark {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .checkbox-label input[type="checkbox"]:checked + .checkmark::after {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 1px;
+        width: 4px;
+        height: 9px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+
+    .label-text {
+        font-size: 0.9rem;
+        color: var(--text-primary);
+    }
+
+    .text-muted {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin: 8px 0 0 28px;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .alert-icon,
+    .confirm-icon {
+        font-size: 3rem;
+        color: var(--primary-color);
+        margin-bottom: 16px;
+    }
+
+    .confirm-icon {
+        color: var(--warning-color);
+    }
+
+    /* ==================== 状态标签 ==================== */
+    .status-pending { color: #856404; }
+    .status-processing { color: #0c5460; }
+    .status-success { color: #155724; }
+    .status-failed { color: #721c24; }
+    .status-none { color: var(--text-secondary); }
+    .status-unknown { color: var(--text-secondary); }
+
+    .transcode-status-badge {
+        font-size: 0.8rem;
+    }
+
+    .transcode-status-badge span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .status-loading {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--text-secondary);
+    }
+
+    /* ==================== 加载和空状态 ==================== */
+    .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 40px;
+        color: var(--text-secondary);
+    }
+
+    .loading i {
+        font-size: 1.5rem;
+    }
+
+    .empty-text,
+    .error-text {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 40px;
+        text-align: center;
+    }
+
+    .empty-text {
+        color: var(--text-secondary);
+    }
+
+    .error-text {
+        color: var(--danger-color);
+    }
+
+    .empty-text i,
+    .error-text i {
+        font-size: 2.5rem;
+    }
+
+    .empty-folder {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 16px;
+        color: var(--text-secondary);
+    }
+
+    /* ==================== 移动端响应式 ==================== */
+    @media (max-width: 768px) {
+        /* 导航栏移动端适配 */
+        .mobile-menu-toggle {
+            display: flex;
+        }
+
+        .mobile-menu-close {
+            display: block;
+        }
+
+        .navbar-menu {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100vh;
+            background: white;
+            z-index: 999;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .navbar-menu.show {
+            left: 0;
+        }
+
+        .navbar-menu-items {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 60px 16px 20px;
+            gap: 4px;
+        }
+
+        .navbar-menu .nav-link {
+            color: var(--text-primary);
+            padding: 14px 16px;
+            border-radius: var(--radius-sm);
+        }
+
+        .navbar-menu .nav-link:hover {
+            background: var(--bg-color);
+            color: var(--primary-color);
+        }
+
+        /* 页面容器 */
+        .admin-container {
+            padding: 16px;
+        }
+
+        .page-header h1 {
+            font-size: 1.4rem;
+        }
+
+        .header-actions {
+            flex-direction: column;
+        }
+
+        .header-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* 章节卡片移动端适配 */
+        .chapter-main {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chapter-info {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chapter-thumbnail {
+            width: 100%;
+            height: 160px;
+        }
+
+        .chapter-sort-actions {
+            flex-direction: row;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .chapter-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .chapter-actions .btn {
+            justify-content: center;
+        }
+
+        .chapter-actions .btn span {
+            display: none;
+        }
+
+        /* 弹窗移动端适配 */
+        .modal {
+            padding: 10px;
+        }
+
+        .modal-content {
+            max-height: 95vh;
+        }
+
+        .modal-footer {
+            flex-direction: column;
+        }
+
+        .modal-footer .btn {
+            width: 100%;
+        }
+
+        /* 视频选择移动端适配 */
+        .video-selection-layout {
+            flex-direction: column;
+        }
+
+        .folder-sidebar {
+            width: 100%;
+            max-height: 200px;
+        }
+
+        .video-item {
+            flex-direction: column;
+        }
+
+        .video-cover,
+        .video-icon {
+            width: 100%;
+            height: 160px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .chapter-actions {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .chapter-actions .btn {
+            padding: 8px;
+        }
+
+        .chapter-actions .btn i {
+            font-size: 1.1rem;
+        }
+    }
+
+    /* 动画 */
+    @keyframes ph-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .ph-spin {
+        animation: ph-spin 1s linear infinite;
+        display: inline-block;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,377 @@
+{% extends 'base.html' %}
+
+{% block title %}日志管理 - {{ site_name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-admin md:flex hidden">
+    <div class="navbar-brand">
+        <a href="{{ url_for('admin.dashboard') }}">
+            <i class="ph ph-shield-check mr-1"></i>管理后台
+        </a>
+    </div>
+    <div class="navbar-menu">
+        <a href="{{ url_for('admin.users') }}" class="nav-link">
+            <i class="ph ph-users mr-1"></i>用户管理
+        </a>
+        <a href="{{ url_for('admin.courses') }}" class="nav-link">
+            <i class="ph ph-books mr-1"></i>课程管理
+        </a>
+        <a href="{{ url_for('admin.videos') }}" class="nav-link">
+            <i class="ph ph-video mr-1"></i>视频管理
+        </a>
+        <a href="{{ url_for('admin.events') }}" class="nav-link">
+            <i class="ph ph-calendar-check mr-1"></i>事件管理
+        </a>
+        <a href="{{ url_for('admin.logs') }}" class="nav-link active">
+            <i class="ph ph-scroll mr-1"></i>日志管理
+        </a>
+        <a href="{{ url_for('admin.locked') }}" class="nav-link">
+            <i class="ph ph-lock-key mr-1"></i>锁定管理
+        </a>
+        <a href="{{ url_for('admin.system_config') }}" class="nav-link">
+            <i class="ph ph-gear mr-1"></i>系统配置
+        </a>
+        <form action="{{ url_for('auth.logout') }}" method="post" style="display: inline;" id="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link flex items-center gap-1" style="background: none; border: none; cursor: pointer; font-size: inherit;" id="logout-btn">
+                <i class="ph ph-sign-out"></i>退出
+            </button>
+        </form>
+    </div>
+</nav>
+
+<!-- 移动端顶部简化导航 -->
+<nav class="md:hidden navbar navbar-admin">
+    <div class="navbar-brand flex items-center gap-2">
+        <i class="ph ph-shield-check text-xl"></i>
+        <span>日志管理</span>
+    </div>
+    <button id="mobile-menu-btn" class="text-white p-2">
+        <i class="ph ph-list text-2xl"></i>
+    </button>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <!-- 页面标题 -->
+    <div class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <i class="ph ph-scroll text-magic-500"></i>
+            日志管理
+        </h1>
+        <p class="text-gray-600 mt-1">查看系统日志和播放记录</p>
+    </div>
+    
+    <!-- 日志类型切换 -->
+    <div class="flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto">
+        <a href="{{ url_for('admin.logs', type='login', search=search, status=status, date_from=date_from, date_to=date_to) }}" 
+           class="nav-tab px-4 py-3 font-medium whitespace-nowrap flex items-center gap-2 {{ 'active text-magic-600 border-b-2 border-magic-500' if log_type == 'login' else 'text-gray-500 hover:text-magic-600' }}">
+            <i class="ph ph-sign-in"></i>登录日志
+        </a>
+        <a href="{{ url_for('admin.logs', type='play', search=search, date_from=date_from, date_to=date_to) }}" 
+           class="nav-tab px-4 py-3 font-medium whitespace-nowrap flex items-center gap-2 {{ 'active text-magic-600 border-b-2 border-magic-500' if log_type == 'play' else 'text-gray-500 hover:text-magic-600' }}">
+            <i class="ph ph-play-circle"></i>播放日志
+        </a>
+    </div>
+    
+    <!-- 搜索和筛选 -->
+    <div class="card mb-6">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.logs') }}" class="flex flex-col lg:flex-row gap-3 flex-wrap">
+                <input type="hidden" name="type" value="{{ log_type }}">
+                
+                <div class="flex-1 min-w-[200px]">
+                    <div class="relative">
+                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" name="search" value="{{ search }}" 
+                               placeholder="{% if log_type == 'login' %}搜索手机号{% else %}搜索用户/课程{% endif %}" 
+                               class="form-control pl-10">
+                    </div>
+                </div>
+                
+                {% if log_type == 'login' %}
+                <div class="w-full sm:w-auto">
+                    <select name="status" class="form-control">
+                        <option value="" {{ 'selected' if status == '' else '' }}>全部状态</option>
+                        <option value="success" {{ 'selected' if status == 'success' else '' }}>登录成功</option>
+                        <option value="failed" {{ 'selected' if status == 'failed' else '' }}>登录失败</option>
+                    </select>
+                </div>
+                {% endif %}
+                
+                <div class="flex gap-3 flex-col sm:flex-row">
+                    <input type="date" name="date_from" value="{{ date_from }}" 
+                           class="form-control">
+                    <span class="hidden sm:flex items-center text-gray-400">至</span>
+                    <input type="date" name="date_to" value="{{ date_to }}" 
+                           class="form-control">
+                </div>
+                
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary flex items-center gap-2">
+                        <i class="ph ph-funnel"></i>筛选
+                    </button>
+                    <a href="{{ url_for('admin.logs', type=log_type) }}" class="btn btn-secondary flex items-center gap-2">
+                        <i class="ph ph-arrow-counter-clockwise"></i>重置
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 桌面端表格 -->
+    <div class="hidden md:block table-responsive card">
+        <table class="table">
+            <thead>
+                <tr>
+                    {% if log_type == 'login' %}
+                    <th>时间</th>
+                    <th>用户</th>
+                    <th>IP地址</th>
+                    <th>客户端</th>
+                    <th>状态</th>
+                    <th>失败原因</th>
+                    {% else %}
+                    <th>时间</th>
+                    <th>用户</th>
+                    <th>课程</th>
+                    <th>章节</th>
+                    <th>观看时长</th>
+                    <th>进度</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if logs %}
+                    {% for log in logs %}
+                    <tr>
+                        {% if log_type == 'login' %}
+                        <td>{{ log.login_time|utc8 }}</td>
+                        <td>{{ log.phone or '-' }}</td>
+                        <td>{{ log.ip_address or '-' }}</td>
+                        <td>{{ log.client_type or '-' }}</td>
+                        <td>
+                            {% if log.is_success %}
+                            <span class="badge badge-success flex items-center gap-1">
+                                <i class="ph ph-check"></i>成功
+                            </span>
+                            {% else %}
+                            <span class="badge badge-danger flex items-center gap-1">
+                                <i class="ph ph-x"></i>失败
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ log.fail_reason or '-' }}</td>
+                        {% else %}
+                        <td>{{ log.play_time|utc8 }}</td>
+                        <td>{{ log.user.phone if log.user else '-' }}</td>
+                        <td>{{ log.course.title if log.course else '-' }}</td>
+                        <td>{{ log.chapter.title if log.chapter else '-' }}</td>
+                        <td>{{ log.duration or 0 }} 秒</td>
+                        <td>
+                            {% if log.progress %}
+                            <div class="flex items-center gap-2">
+                                <div class="progress-bar flex-1 h-2">
+                                    <div class="progress-fill" style="width: {{ log.progress }}%"></div>
+                                </div>
+                                <span class="text-sm text-magic-600 font-medium">{{ "%.0f"|format(log.progress) }}%</span>
+                            </div>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-8 text-gray-500">
+                            <i class="ph ph-inbox text-4xl mb-2 block"></i>
+                            暂无日志记录
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- 移动端卡片 -->
+    <div class="md:hidden space-y-3">
+        {% if logs %}
+            {% for log in logs %}
+            <div class="mobile-card">
+                <div class="mobile-card-header">
+                    <span class="mobile-card-title flex items-center gap-2">
+                        {% if log_type == 'login' %}
+                            {% if log.is_success %}
+                            <i class="ph ph-check-circle text-green-500"></i>
+                            {% else %}
+                            <i class="ph ph-x-circle text-red-500"></i>
+                            {% endif %}
+                            {{ log.phone or '未知用户' }}
+                        {% else %}
+                            <i class="ph ph-user text-magic-500"></i>
+                            {{ log.user.phone if log.user else '未知用户' }}
+                        {% endif %}
+                    </span>
+                    <span class="text-xs text-gray-500">{{ log.login_time|utc8 if log_type == 'login' else log.play_time|utc8 }}</span>
+                </div>
+                <div class="mobile-card-body">
+                    {% if log_type == 'login' %}
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">IP地址</span>
+                        <span class="mobile-card-value">{{ log.ip_address or '-' }}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">客户端</span>
+                        <span class="mobile-card-value">{{ log.client_type or '-' }}</span>
+                    </div>
+                    {% if not log.is_success and log.fail_reason %}
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">失败原因</span>
+                        <span class="mobile-card-value text-red-500">{{ log.fail_reason }}</span>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">课程</span>
+                        <span class="mobile-card-value">{{ log.course.title if log.course else '-' }}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">章节</span>
+                        <span class="mobile-card-value">{{ log.chapter.title if log.chapter else '-' }}</span>
+                    </div>
+                    <div class="mobile-card-row">
+                        <span class="mobile-card-label">观看时长</span>
+                        <span class="mobile-card-value">{{ log.duration or 0 }} 秒</span>
+                    </div>
+                    {% if log.progress %}
+                    <div class="mt-2">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-500">进度</span>
+                            <span class="text-xs text-magic-600 font-medium">{{ "%.0f"|format(log.progress) }}%</span>
+                        </div>
+                        <div class="progress-bar h-1.5">
+                            <div class="progress-fill" style="width: {{ log.progress }}%"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-12 text-gray-500">
+                <i class="ph ph-inbox text-5xl mb-3 block"></i>
+                <p>暂无日志记录</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- 分页 -->
+    {% if pagination and pagination.pages > 1 %}
+    <div class="pagination mt-6">
+        {% if pagination.has_prev %}
+        <a href="{{ url_for('admin.logs', type=log_type, page=pagination.prev_num, search=search, status=status, date_from=date_from, date_to=date_to) }}" 
+           class="page-link flex items-center gap-1">
+            <i class="ph ph-caret-left"></i>上一页
+        </a>
+        {% endif %}
+        
+        <span class="page-info">第 {{ pagination.page }} 页 / 共 {{ pagination.pages }} 页</span>
+        
+        {% if pagination.has_next %}
+        <a href="{{ url_for('admin.logs', type=log_type, page=pagination.next_num, search=search, status=status, date_from=date_from, date_to=date_to) }}" 
+           class="page-link flex items-center gap-1">
+            下一页<i class="ph ph-caret-right"></i>
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- 移动端菜单抽屉 -->
+<div id="mobile-menu-drawer" class="fixed inset-0 bg-black/50 z-50 hidden">
+    <div class="absolute right-0 top-0 bottom-0 w-64 bg-gray-900 shadow-xl transform translate-x-full transition-transform" id="mobile-menu-panel">
+        <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+            <span class="text-white font-semibold">管理菜单</span>
+            <button id="close-menu-btn" class="text-gray-400 hover:text-white">
+                <i class="ph ph-x text-2xl"></i>
+            </button>
+        </div>
+        <nav class="p-4 space-y-2">
+            <a href="{{ url_for('admin.dashboard') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-gauge"></i>仪表盘
+            </a>
+            <a href="{{ url_for('admin.users') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-users"></i>用户管理
+            </a>
+            <a href="{{ url_for('admin.courses') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-books"></i>课程管理
+            </a>
+            <a href="{{ url_for('admin.videos') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-video"></i>视频管理
+            </a>
+            <a href="{{ url_for('admin.events') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-calendar-check"></i>事件管理
+            </a>
+            <a href="{{ url_for('admin.logs') }}" class="flex items-center gap-2 text-white py-2 bg-white/10 rounded-lg px-3">
+                <i class="ph ph-scroll"></i>日志管理
+            </a>
+            <a href="{{ url_for('admin.locked') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-lock-key"></i>锁定管理
+            </a>
+            <a href="{{ url_for('admin.system_config') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-gear"></i>系统配置
+            </a>
+            <form action="{{ url_for('auth.logout') }}" method="post" class="pt-4 border-t border-gray-700 mt-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="flex items-center gap-2 text-red-400 hover:text-red-300 py-2 w-full text-left">
+                    <i class="ph ph-sign-out"></i>退出登录
+                </button>
+            </form>
+        </nav>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 移动端菜单
+(function() {
+    const menuBtn = document.getElementById('mobile-menu-btn');
+    const drawer = document.getElementById('mobile-menu-drawer');
+    const panel = document.getElementById('mobile-menu-panel');
+    const closeBtn = document.getElementById('close-menu-btn');
+    
+    if (menuBtn) {
+        menuBtn.addEventListener('click', function() {
+            drawer.classList.remove('hidden');
+            setTimeout(() => {
+                panel.classList.remove('translate-x-full');
+            }, 10);
+        });
+    }
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeMenu);
+    }
+    
+    if (drawer) {
+        drawer.addEventListener('click', function(e) {
+            if (e.target === drawer) {
+                closeMenu();
+            }
+        });
+    }
+    
+    function closeMenu() {
+        panel.classList.add('translate-x-full');
+        setTimeout(() => {
+            drawer.classList.add('hidden');
+        }, 300);
+    }
+})();
+</script>
+{% endblock %}

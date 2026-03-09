@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+
+{% block title %}课程管理 - {{ site_name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-admin md:flex hidden">
+    <div class="navbar-brand">
+        <a href="{{ url_for('admin.dashboard') }}">
+            <i class="ph ph-shield-check mr-1"></i>管理后台
+        </a>
+    </div>
+    <div class="navbar-menu">
+        <a href="{{ url_for('admin.users') }}" class="nav-link">
+            <i class="ph ph-users mr-1"></i>用户管理
+        </a>
+        <a href="{{ url_for('admin.courses') }}" class="nav-link active">
+            <i class="ph ph-books mr-1"></i>课程管理
+        </a>
+        <a href="{{ url_for('admin.videos') }}" class="nav-link">
+            <i class="ph ph-video mr-1"></i>视频管理
+        </a>
+        <a href="{{ url_for('admin.events') }}" class="nav-link">
+            <i class="ph ph-calendar-check mr-1"></i>事件管理
+        </a>
+        <a href="{{ url_for('admin.logs') }}" class="nav-link">
+            <i class="ph ph-scroll mr-1"></i>日志管理
+        </a>
+        <a href="{{ url_for('admin.locked') }}" class="nav-link">
+            <i class="ph ph-lock-key mr-1"></i>锁定管理
+        </a>
+        <a href="{{ url_for('admin.system_config') }}" class="nav-link">
+            <i class="ph ph-gear mr-1"></i>系统配置
+        </a>
+        <form action="{{ url_for('auth.logout') }}" method="post" style="display: inline;" id="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link flex items-center gap-1" style="background: none; border: none; cursor: pointer; font-size: inherit;" id="logout-btn">
+                <i class="ph ph-sign-out"></i>退出
+            </button>
+        </form>
+    </div>
+</nav>
+
+<!-- 移动端顶部简化导航 -->
+<nav class="md:hidden navbar navbar-admin">
+    <div class="navbar-brand flex items-center gap-2">
+        <i class="ph ph-shield-check text-xl"></i>
+        <span>课程管理</span>
+    </div>
+    <button id="mobile-menu-btn" class="text-white p-2">
+        <i class="ph ph-list text-2xl"></i>
+    </button>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <!-- 页面标题 -->
+    <div class="page-header">
+        <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <i class="ph ph-books text-magic-500"></i>
+            课程管理
+        </h1>
+        <button class="btn btn-primary flex items-center gap-2" onclick="showAddModal()">
+            <i class="ph ph-plus"></i>
+            <span class="hidden sm:inline">添加课程</span>
+            <span class="sm:hidden">添加</span>
+        </button>
+    </div>
+    
+    <!-- 搜索栏 -->
+    <div class="filter-bar mb-6">
+        <form method="GET" action="{{ url_for('admin.courses') }}" class="search-form flex flex-col sm:flex-row gap-3">
+            <input type="text" name="search" placeholder="搜索课程标题" value="{{ search }}" 
+                   class="form-control flex-1">
+            <button type="submit" class="btn btn-secondary flex items-center justify-center gap-2">
+                <i class="ph ph-magnifying-glass"></i>
+                <span>搜索</span>
+            </button>
+        </form>
+    </div>
+    
+    <!-- 课程网格 -->
+    <div class="course-grid">
+        {% for course in courses %}
+        <div class="course-card fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s;">
+            <div class="course-thumbnail">
+                {% if course.thumbnail_url %}
+                <img src="{{ course.thumbnail_url }}" alt="{{ course.title }}" loading="lazy">
+                {% else %}
+                <div class="thumbnail-placeholder">
+                    <span>{{ course.title[0] }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="course-info">
+                <h3 class="truncate">{{ course.title }}</h3>
+                <p class="course-desc line-clamp-2">{{ course.description or '暂无简介' }}</p>
+                
+                <div class="course-actions">
+                    <a href="{{ url_for('admin.course_detail', course_id=course.id) }}" 
+                       class="btn btn-sm btn-secondary flex-1 flex items-center justify-center gap-1">
+                        <i class="ph ph-pencil-simple"></i>
+                        <span class="hidden sm:inline">编辑</span>
+                    </a>
+                    <a href="{{ url_for('admin.chapters', course_id=course.id) }}" 
+                       class="btn btn-sm btn-primary flex-1 flex items-center justify-center gap-1">
+                        <i class="ph ph-list-numbers"></i>
+                        <span class="hidden sm:inline">章节</span>
+                    </a>
+                    <button class="btn btn-sm btn-danger flex items-center justify-center gap-1 px-2" 
+                            onclick="deleteCourse({{ course.id }})">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- 分页 -->
+    {% if pagination.pages > 1 %}
+    <div class="pagination mt-8">
+        {% if pagination.has_prev %}
+        <a href="{{ url_for('admin.courses', page=pagination.prev_num, search=search) }}" class="page-link flex items-center gap-1">
+            <i class="ph ph-caret-left"></i>上一页
+        </a>
+        {% endif %}
+        
+        <span class="page-info">第 {{ pagination.page }} 页 / 共 {{ pagination.pages }} 页</span>
+        
+        {% if pagination.has_next %}
+        <a href="{{ url_for('admin.courses', page=pagination.next_num, search=search) }}" class="page-link flex items-center gap-1">
+            下一页<i class="ph ph-caret-right"></i>
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- 移动端菜单抽屉 -->
+<div id="mobile-menu-drawer" class="fixed inset-0 bg-black/50 z-50 hidden">
+    <div class="absolute right-0 top-0 bottom-0 w-64 bg-gray-900 shadow-xl transform translate-x-full transition-transform" id="mobile-menu-panel">
+        <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+            <span class="text-white font-semibold">管理菜单</span>
+            <button id="close-menu-btn" class="text-gray-400 hover:text-white">
+                <i class="ph ph-x text-2xl"></i>
+            </button>
+        </div>
+        <nav class="p-4 space-y-2">
+            <a href="{{ url_for('admin.dashboard') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-gauge"></i>仪表盘
+            </a>
+            <a href="{{ url_for('admin.users') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-users"></i>用户管理
+            </a>
+            <a href="{{ url_for('admin.courses') }}" class="flex items-center gap-2 text-white py-2 bg-white/10 rounded-lg px-3">
+                <i class="ph ph-books"></i>课程管理
+            </a>
+            <a href="{{ url_for('admin.videos') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-video"></i>视频管理
+            </a>
+            <a href="{{ url_for('admin.events') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-calendar-check"></i>事件管理
+            </a>
+            <a href="{{ url_for('admin.logs') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-scroll"></i>日志管理
+            </a>
+            <a href="{{ url_for('admin.locked') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-lock-key"></i>锁定管理
+            </a>
+            <a href="{{ url_for('admin.system_config') }}" class="flex items-center gap-2 text-gray-300 hover:text-white py-2">
+                <i class="ph ph-gear"></i>系统配置
+            </a>
+            <form action="{{ url_for('auth.logout') }}" method="post" class="pt-4 border-t border-gray-700 mt-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="flex items-center gap-2 text-red-400 hover:text-red-300 py-2 w-full text-left">
+                    <i class="ph ph-sign-out"></i>退出登录
+                </button>
+            </form>
+        </nav>
+    </div>
+</div>
+
+<!-- 添加课程模态框 -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="flex items-center gap-2">
+                <i class="ph ph-plus-circle text-magic-500"></i>
+                添加课程
+            </h3>
+            <button class="close-btn text-2xl" onclick="hideAddModal()">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin.add_course') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label class="flex items-center gap-2">
+                    <i class="ph ph-text-t text-magic-500"></i>
+                    课程标题 *
+                </label>
+                <input type="text" name="title" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="flex items-center gap-2">
+                    <i class="ph ph-text-align-left text-magic-500"></i>
+                    课程简介
+                </label>
+                <textarea name="description" class="form-control" rows="3"></textarea>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideAddModal()">取消</button>
+                <button type="submit" class="btn btn-primary flex items-center gap-2">
+                    <i class="ph ph-floppy-disk"></i>保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+    opacity: 0;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.course-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.course-actions .btn {
+    white-space: nowrap;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 640px) {
+    .course-actions {
+        gap: 4px;
+    }
+    
+    .course-actions .btn {
+        padding: 8px;
+        font-size: 12px;
+    }
+    
+    .course-actions .btn i {
+        font-size: 16px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 移动端菜单
+    (function() {
+        const menuBtn = document.getElementById('mobile-menu-btn');
+        const drawer = document.getElementById('mobile-menu-drawer');
+        const panel = document.getElementById('mobile-menu-panel');
+        const closeBtn = document.getElementById('close-menu-btn');
+        
+        if (menuBtn) {
+            menuBtn.addEventListener('click', function() {
+                drawer.classList.remove('hidden');
+                setTimeout(() => {
+                    panel.classList.remove('translate-x-full');
+                }, 10);
+            });
+        }
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeMenu);
+        }
+        
+        if (drawer) {
+            drawer.addEventListener('click', function(e) {
+                if (e.target === drawer) {
+                    closeMenu();
+                }
+            });
+        }
+        
+        function closeMenu() {
+            panel.classList.add('translate-x-full');
+            setTimeout(() => {
+                drawer.classList.add('hidden');
+            }, 300);
+        }
+    })();
+
+    function showAddModal() {
+        document.getElementById('addModal').classList.add('active');
+    }
+
+    function hideAddModal() {
+        document.getElementById('addModal').classList.remove('active');
+    }
+
+    function deleteCourse(courseId) {
+        if (!confirm('确定要删除该课程吗？此操作将同时删除所有章节，不可恢复。')) return;
+
+        fetch('/admin/courses/' + courseId + '/delete', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': window.getCsrfToken()
+            }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('删除失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(function(error) {
+            alert('删除出错: ' + error);
+        });
+    }
+
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.classList.remove('active');
+        }
+    }
+</script>
+{% endblock %}

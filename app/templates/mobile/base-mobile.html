@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="{% block theme_color %}#9B7CB6{% endblock %}">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="format-detection" content="telephone=no">
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
+    
+    <!-- Preconnect 优化 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    
+    <!-- Mobile Mucha CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <!-- Service Worker 注册 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/js/sw-cache.js').catch(function(err) {
+                console.log('SW registration failed');
+            });
+        }
+    </script>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="mobile-body">
+    {% block content %}{% endblock %}
+    
+    <!-- 底部导航栏（可选） -->
+    {% block bottom_nav %}{% endblock %}
+    
+    <!-- 公共脚本 -->
+    <script>
+        // 全局 CSRF Token 获取
+        window.getCsrfToken = function() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        };
+        
+        // 安全区域适配
+        function updateSafeArea() {
+            const safeAreaBottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom') || '0px';
+            document.documentElement.style.setProperty('--safe-area-bottom', safeAreaBottom);
+        }
+        
+        // 软键盘处理
+        document.querySelectorAll('input, textarea').forEach(input => {
+            input.addEventListener('blur', function() {
+                setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+            });
+        });
+        
+        // 触摸反馈
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSafeArea();
+            document.querySelectorAll('.btn, button, .nav-item').forEach(btn => {
+                btn.addEventListener('touchstart', function() {
+                    this.style.transform = 'scale(0.98)';
+                }, { passive: true });
+                btn.addEventListener('touchend', function() {
+                    this.style.transform = '';
+                }, { passive: true });
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

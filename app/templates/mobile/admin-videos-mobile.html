@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#6B4E7C">
+    <title>视频管理 - {{ site_name }}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    
+    <!-- Mobile Mucha CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        /* 视频管理特定样式 */
+        .search-section {
+            padding: var(--space-md);
+            background: linear-gradient(135deg, var(--mucha-purple-dark) 0%, #4A3A5A 100%);
+        }
+        
+        .search-box {
+            position: relative;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: var(--space-md) var(--space-md) var(--space-md) 44px;
+            border: none;
+            border-radius: var(--radius-full);
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.95);
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: var(--space-md);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--mucha-purple);
+            font-size: 18px;
+        }
+        
+        .video-list {
+            padding: var(--space-md);
+        }
+        
+        .video-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-md);
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border-color);
+        }
+        
+        .video-item .video-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, #F8E8F0 0%, #F0C8D8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #A46884;
+            flex-shrink: 0;
+        }
+        
+        .video-item .video-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .video-item .video-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .video-item .video-meta {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .video-item .video-actions {
+            display: flex;
+            gap: var(--space-sm);
+        }
+        
+        .video-item .action-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-full);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+        
+        .video-item .action-btn.edit {
+            background: var(--mucha-mint-light);
+            color: #4A8B6F;
+        }
+        
+        .video-item .action-btn.delete {
+            background: #F8D7DA;
+            color: #721C24;
+        }
+        
+        .video-item .action-btn:active {
+            transform: scale(0.9);
+        }
+        
+        /* 空状态 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-xl);
+            text-align: center;
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            color: var(--mucha-purple-light);
+            margin-bottom: var(--space-md);
+        }
+        
+        .empty-state h3 {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+        
+        /* 添加按钮 */
+        .fab-btn {
+            position: fixed;
+            bottom: calc(var(--space-xl) + env(safe-area-inset-bottom, 0));
+            right: var(--space-lg);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 20px rgba(107, 78, 124, 0.4);
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+        
+        .fab-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景 -->
+    <div class="mucha-bg"></div>
+    
+    <!-- 顶部导航 -->
+    <nav class="mucha-navbar" style="background: transparent; border: none;">
+        <a href="{{ url_for('mobile.mobile_admin_dashboard') }}" class="nav-back" style="background: rgba(255,255,255,0.2); color: white;">
+            <i class="ph ph-arrow-left"></i>
+        </a>
+        <span class="nav-title" style="color: white;">
+            <i class="ph ph-video"></i>
+            视频管理
+        </span>
+        <div style="width: 40px;"></div>
+    </nav>
+    
+    <!-- 主内容 -->
+    <div class="mucha-content no-navbar no-bottom-nav">
+        <!-- 搜索区域 -->
+        <div class="search-section">
+            <div class="search-box">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" id="searchInput" placeholder="搜索视频..." onkeyup="handleSearch(event)">
+            </div>
+        </div>
+        
+        <!-- 视频列表 -->
+        <div class="video-list" id="videoList">
+            {% if videos %}
+                {% for video in videos %}
+                <div class="video-item">
+                    <div class="video-icon">
+                        <i class="ph ph-video"></i>
+                    </div>
+                    <div class="video-info">
+                        <h3 class="video-title">{{ video.title }}</h3>
+                        <div class="video-meta">
+                            <span>FileID: {{ video.file_id[:20] }}...</span>
+                        </div>
+                    </div>
+                    <div class="video-actions">
+                        <button class="action-btn edit" onclick="editVideo({{ video.id }})">
+                            <i class="ph ph-pencil"></i>
+                        </button>
+                        <button class="action-btn delete" onclick="deleteVideo({{ video.id }})">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="ph ph-video"></i>
+                    <h3>暂无视频</h3>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- 添加按钮 -->
+    <button class="fab-btn" onclick="addVideo()">
+        <i class="ph ph-plus"></i>
+    </button>
+    
+    <script>
+        // 获取CSRF Token
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        }
+        
+        // 搜索视频
+        function handleSearch(event) {
+            if (event.key === 'Enter') {
+                const keyword = event.target.value.trim();
+                const items = document.querySelectorAll('.video-item');
+                items.forEach(item => {
+                    const title = item.querySelector('.video-title').textContent.toLowerCase();
+                    if (title.includes(keyword.toLowerCase())) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+        }
+        
+        // 添加视频
+        function addVideo() {
+            window.location.href = '/admin/videos/create';
+        }
+        
+        // 编辑视频
+        function editVideo(videoId) {
+            window.location.href = '/admin/videos/' + videoId + '/edit';
+        }
+        
+        // 删除视频
+        function deleteVideo(videoId) {
+            if (!confirm('确定要删除该视频吗？此操作不可恢复！')) return;
+            
+            fetch('/admin/api/videos/' + videoId, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || '删除失败');
+                }
+            })
+            .catch(error => {
+                console.error('删除失败:', error);
+                alert('删除失败，请重试');
+            });
+        }
+    </script>
+</body>
+</html>

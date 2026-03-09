@@ -1,0 +1,902 @@
+{% extends 'base.html' %}
+
+{% block title %}系统配置 - {{ site_name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-admin md:flex hidden">
+    <div class="navbar-brand">
+        <a href="{{ url_for('admin.dashboard') }}">
+            <i class="ph ph-shield-check mr-1"></i>管理后台
+        </a>
+    </div>
+    <div class="navbar-menu">
+        <a href="{{ url_for('admin.users') }}" class="nav-link">
+            <i class="ph ph-users mr-1"></i>用户管理
+        </a>
+        <a href="{{ url_for('admin.courses') }}" class="nav-link">
+            <i class="ph ph-books mr-1"></i>课程管理
+        </a>
+        <a href="{{ url_for('admin.videos') }}" class="nav-link">
+            <i class="ph ph-video mr-1"></i>视频管理
+        </a>
+        <a href="{{ url_for('admin.events') }}" class="nav-link">
+            <i class="ph ph-calendar-check mr-1"></i>事件管理
+        </a>
+        <a href="{{ url_for('admin.logs') }}" class="nav-link">
+            <i class="ph ph-scroll mr-1"></i>日志管理
+        </a>
+        <a href="{{ url_for('admin.locked') }}" class="nav-link">
+            <i class="ph ph-lock-key mr-1"></i>锁定管理
+        </a>
+        <a href="{{ url_for('admin.system_config') }}" class="nav-link active">
+            <i class="ph ph-gear mr-1"></i>系统配置
+        </a>
+        <form action="{{ url_for('auth.logout') }}" method="post" style="display: inline;" id="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link flex items-center gap-1" style="background: none; border: none; cursor: pointer; font-size: inherit;" id="logout-btn">
+                <i class="ph ph-sign-out"></i>退出
+            </button>
+        </form>
+    </div>
+</nav>
+
+<!-- 移动端顶部简化导航 -->
+<nav class="md:hidden navbar navbar-admin">
+    <div class="navbar-brand flex items-center gap-2">
+        <i class="ph ph-shield-check text-xl"></i>
+        <span>系统配置</span>
+    </div>
+    <button id="mobile-menu-btn" class="text-white p-2">
+        <i class="ph ph-list text-2xl"></i>
+    </button>
+</nav>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 基础样式 */
+    * {
+        box-sizing: border-box;
+    }
+    
+    /* 移动端侧边栏 - 默认隐藏 */
+    .mobile-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: -280px;
+        width: 280px;
+        height: 100vh;
+        background: #1a1a2e;
+        z-index: 10000;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+        padding: 20px 0;
+    }
+    
+    /* 移动端显示侧边栏 */
+    @media (max-width: 1024px) {
+        .mobile-sidebar {
+            display: block;
+        }
+    }
+    
+    /* 移动端显示菜单按钮 */
+    @media (max-width: 1024px) {
+        .mobile-menu-toggle {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+    }
+    
+    .mobile-sidebar.active {
+        left: 0;
+    }
+    
+    .mobile-sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    /* 移动端显示遮罩 */
+    @media (max-width: 1024px) {
+        .mobile-sidebar-overlay {
+            display: block;
+        }
+    }
+    
+    .mobile-sidebar-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .mobile-sidebar-header {
+        padding: 0 20px 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .mobile-sidebar-header h3 {
+        color: #fff;
+        margin: 0;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .mobile-sidebar-close {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 5px;
+    }
+    
+    .mobile-sidebar-menu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .mobile-sidebar-menu li {
+        margin: 5px 0;
+    }
+    
+    .mobile-sidebar-menu a,
+    .mobile-sidebar-menu button {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 15px 20px;
+        color: #b8b8d1;
+        text-decoration: none;
+        font-size: 15px;
+        background: none;
+        border: none;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .mobile-sidebar-menu a:hover,
+    .mobile-sidebar-menu a.active,
+    .mobile-sidebar-menu button:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.1);
+    }
+    
+    .mobile-sidebar-menu a.active {
+        border-left: 3px solid #4CAF50;
+    }
+    
+    .mobile-sidebar-menu i {
+        font-size: 20px;
+    }
+    
+    /* 导航栏样式 */
+    .navbar-admin {
+        background: rgba(30, 27, 75, 0.95);
+        color: #fff;
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 60px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+    }
+    
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .navbar-brand a {
+        color: #fff;
+        text-decoration: none;
+        font-size: 18px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .mobile-menu-toggle {
+        display: none !important;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 4px;
+        transition: background 0.2s;
+    }
+    
+    .mobile-menu-toggle:hover {
+        background: rgba(255,255,255,0.1);
+    }
+    
+    .navbar-menu {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .navbar-menu .nav-link {
+        color: #fff;
+        text-decoration: none;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .navbar-menu .nav-link:hover {
+        color: #fff;
+        background: rgba(139, 92, 246, 0.3);
+    }
+    
+    .navbar-menu .nav-link.active {
+        color: #fff;
+        background: rgba(139, 92, 246, 0.3);
+    }
+    
+    #logout-btn {
+        color: #fff;
+    }
+    
+    #logout-btn:hover {
+        background: rgba(139, 92, 246, 0.3);
+    }
+    
+    /* 主容器 */
+    .admin-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 30px 20px;
+    }
+    
+    .admin-container h1 {
+        font-size: 28px;
+        margin-bottom: 30px;
+        color: #1a1a2e;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    /* 配置区块 */
+    .config-section {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e8e8f0;
+    }
+    
+    .config-section h2 {
+        font-size: 18px;
+        color: #1a1a2e;
+        margin: 0 0 20px 0;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f0f0f5;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .config-section h2 i {
+        color: #4CAF50;
+    }
+    
+    /* 表单样式 */
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    .form-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 8px;
+    }
+    
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.2s;
+        background: #fff;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #4CAF50;
+        box-shadow: 0 0 0 3px rgba(76,175,80,0.1);
+    }
+    
+    .form-group small {
+        display: block;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #888;
+        line-height: 1.5;
+    }
+    
+    /* 按钮样式 */
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 20px 0;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: #fff;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(76,175,80,0.3);
+    }
+    
+    .btn-secondary {
+        background: #f5f5f5;
+        color: #333;
+        border: 1px solid #ddd;
+    }
+    
+    .btn-secondary:hover {
+        background: #e8e8e8;
+    }
+    
+    /* 测试结果 */
+    .test-result {
+        margin-top: 20px;
+    }
+    
+    .alert {
+        padding: 15px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .alert-danger {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 1024px) {
+        .navbar-menu {
+            display: none;
+        }
+        
+        .mobile-menu-toggle {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .navbar-brand {
+            gap: 10px;
+        }
+    }
+    
+    @media (min-width: 1025px) {
+        .navbar-menu {
+            display: flex !important;
+        }
+        
+        .mobile-menu-toggle {
+            display: none !important;
+        }
+        
+        /* PC端隐藏移动端侧边栏和遮罩 */
+        .mobile-sidebar,
+        .mobile-sidebar-overlay {
+            display: none !important;
+            left: -9999px;  /* 确保完全移出视口 */
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .admin-container {
+            padding: 20px 15px;
+        }
+        
+        .admin-container h1 {
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+        
+        .config-section {
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+        
+        .config-section h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 12px;
+            font-size: 16px; /* 防止iOS缩放 */
+        }
+        
+        .form-actions {
+            flex-direction: column;
+            padding: 15px 0;
+        }
+        
+        .btn {
+            width: 100%;
+            justify-content: center;
+            padding: 14px 24px;
+        }
+        
+        .form-group small {
+            font-size: 11px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .navbar-admin {
+            padding: 0 15px;
+            height: 56px;
+        }
+        
+        .navbar-brand a {
+            font-size: 16px;
+        }
+        
+        .admin-container {
+            padding: 15px 12px;
+        }
+        
+        .admin-container h1 {
+            font-size: 20px;
+        }
+        
+        .config-section {
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .config-section h2 {
+            font-size: 15px;
+        }
+        
+        .mobile-sidebar {
+            width: 260px;
+        }
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="admin-container">
+    <h1><i class="ph ph-sliders-horizontal"></i> 系统配置</h1>
+    
+    <form method="POST" action="{{ url_for('admin.save_config') }}" class="config-form">
+        <!-- CSRF Token -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="config-section">
+            <h2><i class="ph ph-cloud"></i> 腾讯云VOD配置</h2>
+            
+            <div class="form-group">
+                <label>App ID *</label>
+                <input type="text" name="app_id" value="{{ configs.app_id }}" required>
+                <small>腾讯云点播应用ID</small>
+            </div>
+            
+            <div class="form-group">
+                <label>SecretId *</label>
+                <input type="text" name="secret_id" placeholder="留空表示不修改">
+                <small>API密钥ID（加密存储）</small>
+            </div>
+            
+            <div class="form-group">
+                <label>SecretKey *</label>
+                <input type="password" name="secret_key" placeholder="留空表示不修改">
+                <small>API密钥（加密存储）</small>
+            </div>
+            
+            <div class="form-group">
+                <label>播放密钥 *</label>
+                <input type="password" name="play_key" placeholder="留空表示不修改">
+                <small>用于生成播放器签名psign（加密存储）</small>
+            </div>
+            
+            <div class="form-group">
+                <label>License URL *</label>
+                <input type="url" name="license_url" value="{{ configs.license_url }}" required>
+                <small>TCPlayer License地址</small>
+            </div>
+            
+            <div class="form-group">
+                <label>License Key *</label>
+                <input type="password" name="license_key" placeholder="留空表示不修改">
+                <small>TCPlayer License密钥（加密存储）</small>
+            </div>
+
+            <div class="form-group">
+                <label>任务流名称</label>
+                <input type="text" name="vod_procedure_name" value="{{ configs.vod_procedure_name }}" placeholder="HLS_S1">
+                <small>上传后自动执行的任务流模板名称，如 HLS_S1</small>
+            </div>
+
+            <div class="form-group">
+                <label>回调密钥</label>
+                <input type="password" name="callback_key" placeholder="留空表示不修改">
+                <small>腾讯云回调签名验证密钥（加密存储），用于验证回调请求</small>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h2><i class="ph ph-shield-check"></i> 安全设置</h2>
+
+            <div class="form-group">
+                <label>每小时访问次数限制</label>
+                <input type="number" name="hourly_access_limit" value="{{ configs.hourly_access_limit }}" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label>登录失败次数限制</label>
+                <input type="number" name="login_fail_limit" value="{{ configs.login_fail_limit }}" min="1" required>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h2><i class="ph ph-file-text"></i> 日志设置</h2>
+
+            <div class="form-group">
+                <label>日志等级</label>
+                <select name="log_level" required>
+                    <option value="DEBUG" {{ 'selected' if configs.log_level == 'DEBUG' else '' }}>DEBUG - 记录详细信息</option>
+                    <option value="INFO" {{ 'selected' if configs.log_level == 'INFO' else '' }}>INFO - 记录一般信息（默认）</option>
+                    <option value="ERROR" {{ 'selected' if configs.log_level == 'ERROR' else '' }}>ERROR - 仅记录错误</option>
+                </select>
+                <small>DEBUG: 记录用户每次操作、API请求/响应完整信息、外部接口调用完整报文<br>
+                       INFO: 记录操作和API调用摘要，不包含详细信息<br>
+                       ERROR: 仅记录API和外部接口错误信息，包含原始报文</small>
+            </div>
+
+            <div class="form-group">
+                <label>控制台打印</label>
+                <select name="log_console_output" required>
+                    <option value="true" {{ 'selected' if configs.log_console_output == 'true' else '' }}>开启 - 日志同时输出到控制台</option>
+                    <option value="false" {{ 'selected' if configs.log_console_output == 'false' else '' }}>关闭 - 仅输出到日志文件（默认）</option>
+                </select>
+                <small>开启后，所有日志会同步输出到控制台和日志文件</small>
+            </div>
+
+            <div class="form-group">
+                <label>日志文件留存数量</label>
+                <input type="number" name="log_backup_count" value="{{ configs.log_backup_count }}" min="1" max="100" required>
+                <small>日志文件超过5MB会自动创建新文件，最多保留指定数量的历史日志文件（默认20个）</small>
+            </div>
+        </div>
+        
+        <div class="config-section">
+            <h2><i class="ph ph-upload-simple"></i> 上传设置</h2>
+            
+            <div class="form-group">
+                <label>最大文件大小 (MB)</label>
+                <input type="number" name="max_file_size" value="{{ configs.max_file_size or '100' }}" min="1" max="2048" required>
+                <small>允许上传的单个文件最大大小，单位MB（默认100MB，最大2048MB/2GB）</small>
+            </div>
+        </div>
+        
+        <div class="config-section">
+            <h2><i class="ph ph-drop"></i> 水印设置</h2>
+            
+            <div class="form-group">
+                <label>幽灵水印第一行</label>
+                <input type="text" name="ghost_watermark_line1" value="{{ configs.ghost_watermark_line1 }}" required>
+                <small>将显示在视频水印第一行</small>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="ph ph-floppy-disk"></i> 保存配置
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="testConfig()">
+                <i class="ph ph-plugs-connected"></i> 测试连接
+            </button>
+        </div>
+    </form>
+    
+    <div id="testResult" class="test-result" style="display:none;"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 移动端侧边栏控制
+    function openMobileSidebar() {
+        document.getElementById('mobileSidebar').classList.add('active');
+        document.getElementById('mobileSidebarOverlay').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeMobileSidebar() {
+        document.getElementById('mobileSidebar').classList.remove('active');
+        document.getElementById('mobileSidebarOverlay').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    
+    // ESC键关闭侧边栏
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeMobileSidebar();
+        }
+    });
+
+    // 存储原始配置值
+    var originalConfigs = {};
+    
+    // 页面加载完成后保存原始值
+    document.addEventListener('DOMContentLoaded', function() {
+        var form = document.querySelector('.config-form');
+        var inputs = form.querySelectorAll('input[name], select[name]');
+        
+        inputs.forEach(function(input) {
+            var name = input.name;
+            var value = input.value;
+            
+            // 对于密码字段，如果placeholder是"留空表示不修改"，则不记录原始值
+            if (input.type === 'password' && input.placeholder === '留空表示不修改') {
+                originalConfigs[name] = '';
+            } else {
+                originalConfigs[name] = value;
+            }
+        });
+        
+        console.log('[Config] 原始配置已保存:', Object.keys(originalConfigs));
+    });
+    
+    // 获取配置项的显示名称
+    function getConfigDisplayName(name) {
+        var nameMap = {
+            'app_id': 'App ID',
+            'secret_id': 'SecretId',
+            'secret_key': 'SecretKey',
+            'play_key': '播放密钥',
+            'license_url': 'License URL',
+            'license_key': 'License Key',
+            'vod_procedure_name': '任务流名称',
+            'callback_key': '回调密钥',
+            'hourly_access_limit': '每小时访问次数限制',
+            'login_fail_limit': '登录失败次数限制',
+            'log_level': '日志等级',
+            'log_console_output': '控制台打印',
+            'log_backup_count': '日志文件留存数量',
+            'ghost_watermark_line1': '幽灵水印第一行'
+        };
+        return nameMap[name] || name;
+    }
+    
+    // 比较配置变更
+    function getConfigChanges() {
+        var changes = [];
+        var form = document.querySelector('.config-form');
+        var inputs = form.querySelectorAll('input[name], select[name]');
+        
+        inputs.forEach(function(input) {
+            var name = input.name;
+            var newValue = input.value;
+            var oldValue = originalConfigs[name];
+            
+            // 对于密码字段，如果为空则不比较（表示不修改）
+            if (input.type === 'password') {
+                if (newValue === '') {
+                    return; // 跳过未修改的密码字段
+                }
+                changes.push({
+                    name: name,
+                    displayName: getConfigDisplayName(name),
+                    oldValue: '********',
+                    newValue: '********',
+                    isPassword: true
+                });
+            } else if (oldValue !== newValue) {
+                changes.push({
+                    name: name,
+                    displayName: getConfigDisplayName(name),
+                    oldValue: oldValue || '(空)',
+                    newValue: newValue || '(空)',
+                    isPassword: false
+                });
+            }
+        });
+        
+        return changes;
+    }
+    
+    // 显示确认对话框
+    function showConfigConfirmDialog(changes, callback) {
+        // 创建遮罩层
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9998;';
+        
+        // 创建对话框
+        var dialog = document.createElement('div');
+        dialog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:9999;max-width:600px;max-height:80vh;overflow:auto;width:90%;';
+        
+        // 构建变更列表HTML
+        var changesHtml = '<h3 style="margin-top:0;color:#333;">确认保存配置变更</h3>';
+        changesHtml += '<p style="color:#666;">以下参数将被修改：</p>';
+        changesHtml += '<table style="width:100%;border-collapse:collapse;margin:15px 0;font-size:14px;">';
+        changesHtml += '<thead><tr style="background:#f5f5f5;"><th style="padding:10px;text-align:left;border:1px solid #ddd;">参数</th><th style="padding:10px;text-align:left;border:1px solid #ddd;">原值</th><th style="padding:10px;text-align:left;border:1px solid #ddd;">新值</th></tr></thead>';
+        changesHtml += '<tbody>';
+        
+        changes.forEach(function(change) {
+            changesHtml += '<tr>';
+            changesHtml += '<td style="padding:10px;border:1px solid #ddd;font-weight:bold;">' + change.displayName + '</td>';
+            if (change.isPassword) {
+                changesHtml += '<td style="padding:10px;border:1px solid #ddd;color:#999;">******** (不变)</td>';
+                changesHtml += '<td style="padding:10px;border:1px solid #ddd;color:#2196F3;">******** (已修改)</td>';
+            } else {
+                changesHtml += '<td style="padding:10px;border:1px solid #ddd;color:#999;">' + escapeHtml(change.oldValue) + '</td>';
+                changesHtml += '<td style="padding:10px;border:1px solid #ddd;color:#2196F3;">' + escapeHtml(change.newValue) + '</td>';
+            }
+            changesHtml += '</tr>';
+        });
+        
+        changesHtml += '</tbody></table>';
+        changesHtml += '<p style="color:#f44336;font-size:14px;">⚠️ 请仔细核对变更内容，确认后点击【确定】保存。</p>';
+        
+        // 按钮
+        changesHtml += '<div style="text-align:right;margin-top:20px;">';
+        changesHtml += '<button id="confirmSaveBtn" style="padding:10px 20px;margin-right:10px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;">确定保存</button>';
+        changesHtml += '<button id="cancelSaveBtn" style="padding:10px 20px;background:#999;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;">取消</button>';
+        changesHtml += '</div>';
+        
+        dialog.innerHTML = changesHtml;
+        
+        document.body.appendChild(overlay);
+        document.body.appendChild(dialog);
+        
+        // 绑定按钮事件
+        document.getElementById('confirmSaveBtn').onclick = function() {
+            document.body.removeChild(overlay);
+            document.body.removeChild(dialog);
+            callback(true);
+        };
+        
+        document.getElementById('cancelSaveBtn').onclick = function() {
+            document.body.removeChild(overlay);
+            document.body.removeChild(dialog);
+            callback(false);
+        };
+        
+        // 点击遮罩层关闭
+        overlay.onclick = function() {
+            document.body.removeChild(overlay);
+            document.body.removeChild(dialog);
+            callback(false);
+        };
+    }
+    
+    // HTML转义函数
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // 拦截表单提交
+    document.addEventListener('DOMContentLoaded', function() {
+        var form = document.querySelector('.config-form');
+        
+        form.addEventListener('submit', function(e) {
+            e.preventDefault(); // 阻止默认提交
+            
+            var changes = getConfigChanges();
+            
+            if (changes.length === 0) {
+                alert('没有配置项被修改');
+                return;
+            }
+            
+            showConfigConfirmDialog(changes, function(confirmed) {
+                if (confirmed) {
+                    // 用户确认，提交表单
+                    form.submit();
+                }
+            });
+        });
+    });
+
+    function testConfig() {
+        var resultDiv = document.getElementById('testResult');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<p>正在测试连接...</p>';
+        
+        fetch('/admin/config/test', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': window.getCsrfToken()
+            }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                resultDiv.innerHTML = '<div class="alert alert-success"><i class="ph ph-check-circle" style="margin-right:8px;"></i>' + data.message + '</div>';
+            } else {
+                resultDiv.innerHTML = '<div class="alert alert-danger"><i class="ph ph-x-circle" style="margin-right:8px;"></i>连接失败: ' + data.error + '</div>';
+            }
+        })
+        .catch(function(error) {
+            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="ph ph-warning-circle" style="margin-right:8px;"></i>测试出错: ' + error + '</div>';
+        });
+    }
+</script>
+{% endblock %}

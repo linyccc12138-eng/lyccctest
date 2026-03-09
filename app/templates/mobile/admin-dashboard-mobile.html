@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#6B4E7C">
+    <title>管理后台 - {{ site_name }}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    
+    <!-- Mobile Mucha CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        /* 管理员仪表盘特定样式 */
+        .admin-header {
+            background: linear-gradient(135deg, var(--mucha-purple-dark) 0%, #4A3A5A 100%);
+            padding: var(--space-xl) var(--space-lg);
+            padding-top: calc(var(--top-nav-height) + var(--space-lg));
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .admin-header::before {
+            content: '';
+            position: absolute;
+            top: -30%;
+            right: -10%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        
+        .admin-title {
+            font-family: var(--font-display);
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: var(--space-xs);
+        }
+        
+        .admin-subtitle {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        /* 统计卡片 */
+        .stats-section {
+            padding: var(--space-md);
+            margin-top: -30px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-md);
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            text-align: center;
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-color);
+        }
+        
+        .stat-card .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--space-sm);
+            font-size: 24px;
+        }
+        
+        .stat-card:nth-child(1) .stat-icon {
+            background: linear-gradient(135deg, #E8F4F8 0%, #B8E0F0 100%);
+            color: #4A90A4;
+        }
+        
+        .stat-card:nth-child(2) .stat-icon {
+            background: linear-gradient(135deg, #F8E8F0 0%, #F0C8D8 100%);
+            color: #A46884;
+        }
+        
+        .stat-card:nth-child(3) .stat-icon {
+            background: linear-gradient(135deg, #F0F8E8 0%, #D8F0C8 100%);
+            color: #689468;
+        }
+        
+        .stat-card:nth-child(4) .stat-icon {
+            background: linear-gradient(135deg, #FFF8E8 0%, #F8E8C8 100%);
+            color: #A48848;
+        }
+        
+        .stat-card .stat-value {
+            font-family: var(--font-display);
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-card .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        
+        /* 管理菜单 */
+        .menu-section {
+            padding: var(--space-md);
+        }
+        
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--mucha-purple-dark);
+            margin-bottom: var(--space-md);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+        
+        .section-title i {
+            color: var(--mucha-gold);
+        }
+        
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-md);
+        }
+        
+        .menu-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-lg) var(--space-md);
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            text-decoration: none;
+            color: inherit;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        
+        .menu-item:active {
+            transform: scale(0.95);
+            background: var(--mucha-purple-light);
+        }
+        
+        .menu-item .menu-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+        
+        .menu-item:nth-child(1) .menu-icon {
+            background: linear-gradient(135deg, #E8F4F8 0%, #B8E0F0 100%);
+            color: #4A90A4;
+        }
+        
+        .menu-item:nth-child(2) .menu-icon {
+            background: linear-gradient(135deg, #F8E8F0 0%, #F0C8D8 100%);
+            color: #A46884;
+        }
+        
+        .menu-item:nth-child(3) .menu-icon {
+            background: linear-gradient(135deg, #F0F8E8 0%, #D8F0C8 100%);
+            color: #689468;
+        }
+        
+        .menu-item:nth-child(4) .menu-icon {
+            background: linear-gradient(135deg, #FFF8E8 0%, #F8E8C8 100%);
+            color: #A48848;
+        }
+        
+        .menu-item:nth-child(5) .menu-icon {
+            background: linear-gradient(135deg, #F0E8F8 0%, #E0D0F0 100%);
+            color: #8468A4;
+        }
+        
+        .menu-item:nth-child(6) .menu-icon {
+            background: linear-gradient(135deg, #F8F0E8 0%, #F0E0D0 100%);
+            color: #A47858;
+        }
+        
+        .menu-item .menu-name {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        
+        /* 退出按钮 */
+        .logout-section {
+            padding: var(--space-lg);
+        }
+        
+        .logout-btn {
+            width: 100%;
+            padding: var(--space-md);
+            background: transparent;
+            color: var(--danger);
+            border: 2px solid var(--danger);
+            border-radius: var(--radius-full);
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+            transition: all 0.3s ease;
+        }
+        
+        .logout-btn:active {
+            background: var(--danger);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景 -->
+    <div class="mucha-bg"></div>
+    
+    <!-- 主内容 -->
+    <div class="mucha-content no-navbar no-bottom-nav">
+        <!-- 管理员头部 -->
+        <div class="admin-header">
+            <h1 class="admin-title">管理后台</h1>
+            <p class="admin-subtitle">欢迎回来，{{ current_user.phone }}</p>
+        </div>
+        
+        <!-- 统计卡片 -->
+        <div class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="ph ph-users"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.users_count }}</div>
+                    <div class="stat-label">用户总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="ph ph-books"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.courses_count }}</div>
+                    <div class="stat-label">课程总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="ph ph-video"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.videos_count }}</div>
+                    <div class="stat-label">视频总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="ph ph-play-circle"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.today_plays }}</div>
+                    <div class="stat-label">今日播放</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 管理菜单 -->
+        <div class="menu-section">
+            <h2 class="section-title">
+                <i class="ph ph-grid-four"></i>
+                功能管理
+            </h2>
+            <div class="menu-grid">
+                <a href="{{ url_for('mobile.mobile_admin_users') }}" class="menu-item">
+                    <div class="menu-icon">
+                        <i class="ph ph-users"></i>
+                    </div>
+                    <span class="menu-name">用户管理</span>
+                </a>
+                <a href="{{ url_for('mobile.mobile_admin_courses') }}" class="menu-item">
+                    <div class="menu-icon">
+                        <i class="ph ph-books"></i>
+                    </div>
+                    <span class="menu-name">课程管理</span>
+                </a>
+                <a href="{{ url_for('mobile.mobile_admin_videos') }}" class="menu-item">
+                    <div class="menu-icon">
+                        <i class="ph ph-video"></i>
+                    </div>
+                    <span class="menu-name">视频管理</span>
+                </a>
+                <a href="{{ url_for('mobile.mobile_admin_events') }}" class="menu-item">
+                    <div class="menu-icon">
+                        <i class="ph ph-calendar-check"></i>
+                    </div>
+                    <span class="menu-name">事件管理</span>
+                </a>
+                <a href="{{ url_for('mobile.mobile_admin_logs') }}" class="menu-item">
+                    <div class="menu-icon">
+                        <i class="ph ph-scroll"></i>
+                    </div>
+                    <span class="menu-name">日志管理</span>
+                </a>
+                <a href="{{ url_for('mobile.mobile_admin_config') }}" class="menu-item">
+                    <div class="menu-icon">
+                        <i class="ph ph-gear"></i>
+                    </div>
+                    <span class="menu-name">系统配置</span>
+                </a>
+            </div>
+        </div>
+        
+        <!-- 退出按钮 -->
+        <div class="logout-section">
+            <button class="logout-btn" onclick="handleLogout()">
+                <i class="ph ph-sign-out"></i>
+                退出登录
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // 退出登录
+        function handleLogout() {
+            if (!confirm('确定要退出登录吗？')) return;
+            
+            fetch('/admin/logout', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                }
+            })
+            .then(() => {
+                window.location.href = '/mobile/admin/login';
+            })
+            .catch(error => {
+                console.error('退出失败:', error);
+                window.location.href = '/mobile/admin/login';
+            });
+        }
+    </script>
+</body>
+</html>

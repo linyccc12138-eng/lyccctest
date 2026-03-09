@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}播放历史 - {{ site_name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar md:flex hidden">
+    <div class="navbar-brand">
+        <a href="{{ url_for('user.dashboard') }}">{{ site_name }}</a>
+    </div>
+    <div class="navbar-menu">
+        <a href="{{ url_for('user.dashboard') }}" class="nav-link">
+            <i class="ph ph-house mr-1"></i>首页
+        </a>
+        <a href="{{ url_for('user.my_courses') }}" class="nav-link">
+            <i class="ph ph-book-bookmark mr-1"></i>我的课程
+        </a>
+        <a href="{{ url_for('user.history') }}" class="nav-link active">
+            <i class="ph ph-clock-counter-clockwise mr-1"></i>播放历史
+        </a>
+        <a href="{{ url_for('course.list_courses') }}" class="nav-link">
+            <i class="ph ph-books mr-1"></i>全部课程
+        </a>
+        <a href="{{ url_for('user.change_password') }}" class="nav-link">
+            <i class="ph ph-key mr-1"></i>修改密码
+        </a>
+        <a href="{{ url_for('auth.logout') }}" class="nav-link">
+            <i class="ph ph-sign-out mr-1"></i>退出
+        </a>
+    </div>
+</nav>
+
+<!-- 移动端顶部简化导航 -->
+<nav class="md:hidden navbar">
+    <div class="navbar-brand flex items-center gap-2">
+        <a href="{{ url_for('user.dashboard') }}" class="flex items-center gap-2">
+            <i class="ph ph-arrow-left text-xl"></i>
+            <span>播放历史</span>
+        </a>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- 页面标题 -->
+    <div class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <i class="ph ph-clock-counter-clockwise text-magic-500"></i>
+            播放历史
+        </h1>
+        <p class="text-gray-600 mt-1">回顾你的学习足迹 📖</p>
+    </div>
+    
+    {% if play_logs %}
+    <div class="card">
+        <div class="divide-y divide-gray-100">
+            {% for log in play_logs %}
+            <div class="history-item p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-gray-50 transition-colors">
+                <!-- 缩略图 -->
+                <div class="history-thumb w-full sm:w-32 h-auto sm:h-20 rounded-lg overflow-hidden bg-magic-100 flex-shrink-0">
+                    {% if log.course.thumbnail_url %}
+                    <img src="{{ log.course.thumbnail_url }}" alt="{{ log.course.title }}" class="w-full h-full object-cover">
+                    {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-magic-400">
+                        <i class="ph ph-book text-3xl"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- 信息 -->
+                <div class="flex-1 min-w-0">
+                    <h4 class="font-semibold text-gray-800 truncate">{{ log.course.title }}</h4>
+                    <p class="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                        <i class="ph ph-play-circle text-magic-500"></i>
+                        {{ log.chapter.title }}
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                        <i class="ph ph-calendar"></i>
+                        {{ log.play_time|utc8 }}
+                    </p>
+                    
+                    {% if log.progress %}
+                    <div class="flex items-center gap-3 mt-2">
+                        <div class="flex-1 progress-bar h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div class="progress-fill h-full bg-gradient-to-r from-magic-500 to-magic-400 rounded-full" 
+                                 style="width: {{ log.progress }}%"></div>
+                        </div>
+                        <span class="text-xs text-magic-600 font-medium whitespace-nowrap">{{ "%.0f"|format(log.progress) }}%</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- 操作按钮 -->
+                <a href="{{ url_for('play.play', chapter_id=log.chapter_id) }}" 
+                   class="btn btn-primary btn-sm flex items-center justify-center gap-1 whitespace-nowrap self-start sm:self-center">
+                    <i class="ph ph-play-fill"></i>
+                    <span class="hidden sm:inline">继续</span>
+                    <span class="sm:hidden">播放</span>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p class="text-lg mb-2">暂无播放记录</p>
+        <p class="text-sm text-gray-500 mb-4">开始学习你的第一门课程吧</p>
+        <a href="{{ url_for('course.list_courses') }}" class="btn btn-primary inline-flex items-center gap-2">
+            <i class="ph ph-compass"></i>
+            去选课
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block mobile_nav %}
+<!-- 移动端底部导航栏 -->
+<nav class="mobile-bottom-nav md:hidden">
+    <div class="mobile-bottom-nav-items">
+        <a href="{{ url_for('user.dashboard') }}" class="mobile-nav-item">
+            <i class="ph ph-house text-2xl"></i>
+            <span>首页</span>
+        </a>
+        <a href="{{ url_for('user.my_courses') }}" class="mobile-nav-item">
+            <i class="ph ph-book-bookmark text-2xl"></i>
+            <span>我的课程</span>
+        </a>
+        <a href="{{ url_for('user.history') }}" class="mobile-nav-item active">
+            <i class="ph ph-clock-counter-clockwise text-2xl"></i>
+            <span>播放历史</span>
+        </a>
+        <a href="{{ url_for('course.list_courses') }}" class="mobile-nav-item">
+            <i class="ph ph-books text-2xl"></i>
+            <span>全部课程</span>
+        </a>
+        <a href="{{ url_for('user.change_password') }}" class="mobile-nav-item">
+            <i class="ph ph-key text-2xl"></i>
+            <span>修改密码</span>
+        </a>
+    </div>
+</nav>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.history-item:first-child {
+    border-radius: 16px 16px 0 0;
+}
+
+.history-item:last-child {
+    border-radius: 0 0 16px 16px;
+}
+
+@media (max-width: 640px) {
+    .history-thumb {
+        aspect-ratio: 16 / 9;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,508 @@
+{% extends 'mobile/base-mobile.html' %}
+
+{% block title %}首页 - {{ site_name }}{% endblock %}
+{% block theme_color %}#9B7CB6{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 仪表盘特定样式 */
+    .welcome-section {
+        padding: var(--space-lg);
+        background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+        border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .welcome-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle, rgba(212, 175, 55, 0.3) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    
+    .welcome-section::after {
+        content: '';
+        position: absolute;
+        bottom: -30%;
+        left: -10%;
+        width: 150px;
+        height: 150px;
+        background: radial-gradient(circle, rgba(168, 213, 186, 0.2) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    
+    .welcome-content {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .welcome-greeting {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-bottom: var(--space-xs);
+    }
+    
+    .welcome-name {
+        font-family: var(--font-display);
+        font-size: 24px;
+        font-weight: 700;
+    }
+    
+    .quick-stats {
+        display: flex;
+        gap: var(--space-md);
+        margin-top: var(--space-lg);
+    }
+    
+    .quick-stat {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border-radius: var(--radius-md);
+        padding: var(--space-md);
+        text-align: center;
+    }
+    
+    .quick-stat .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--mucha-gold-light);
+    }
+    
+    .quick-stat .stat-label {
+        font-size: 12px;
+        opacity: 0.9;
+        margin-top: 2px;
+    }
+    
+    /* 继续学习卡片 */
+    .continue-section {
+        padding: var(--space-md);
+    }
+    
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--space-md);
+    }
+    
+    .section-title {
+        font-family: var(--font-display);
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--mucha-purple-dark);
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+    }
+    
+    .section-title i {
+        color: var(--mucha-gold);
+    }
+    
+    .section-more {
+        font-size: 13px;
+        color: var(--mucha-purple);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .continue-card {
+        background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .continue-card::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -10%;
+        width: 120px;
+        height: 120px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    
+    .continue-card .course-name {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: var(--space-xs);
+        position: relative;
+        z-index: 1;
+    }
+    
+    .continue-card .chapter-name {
+        font-size: 13px;
+        opacity: 0.9;
+        margin-bottom: var(--space-md);
+        position: relative;
+        z-index: 1;
+    }
+    
+    .continue-card .progress-wrapper {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .continue-card .progress-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: var(--space-sm);
+        opacity: 0.9;
+    }
+    
+    .continue-card .progress-bar {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius-full);
+        overflow: hidden;
+    }
+    
+    .continue-card .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--mucha-gold) 0%, var(--mucha-gold-light) 100%);
+        border-radius: var(--radius-full);
+    }
+    
+    .continue-card .continue-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-sm);
+        margin-top: var(--space-md);
+        padding: var(--space-sm) var(--space-lg);
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius-full);
+        font-size: 13px;
+        color: white;
+        text-decoration: none;
+        backdrop-filter: blur(10px);
+    }
+    
+    /* 推荐课程 */
+    .recommend-section {
+        padding: var(--space-md);
+    }
+    
+    .course-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-md);
+    }
+    
+    .course-card {
+        background: var(--bg-card);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-soft);
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+    
+    .course-card:active {
+        transform: scale(0.98);
+    }
+    
+    .course-card .card-thumb {
+        position: relative;
+        aspect-ratio: 16 / 10;
+        overflow: hidden;
+    }
+    
+    .course-card .card-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .course-card .card-thumb .lock-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 24px;
+    }
+    
+    .course-card .card-info {
+        padding: var(--space-md);
+    }
+    
+    .course-card .card-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .course-card .card-meta {
+        margin-top: var(--space-sm);
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+    
+    /* 功能入口 */
+    .feature-section {
+        padding: var(--space-md);
+    }
+    
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--space-md);
+    }
+    
+    .feature-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-sm);
+        text-decoration: none;
+        color: var(--text-primary);
+    }
+    
+    .feature-item:active .feature-icon {
+        transform: scale(0.95);
+    }
+    
+    .feature-item .feature-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        transition: all 0.3s ease;
+    }
+    
+    .feature-item:nth-child(1) .feature-icon {
+        background: linear-gradient(135deg, #E8F4F8 0%, #B8E0F0 100%);
+        color: #4A90A4;
+    }
+    
+    .feature-item:nth-child(2) .feature-icon {
+        background: linear-gradient(135deg, #F8E8F0 0%, #F0C8D8 100%);
+        color: #A46884;
+    }
+    
+    .feature-item:nth-child(3) .feature-icon {
+        background: linear-gradient(135deg, #F0F8E8 0%, #D8F0C8 100%);
+        color: #689468;
+    }
+    
+    .feature-item:nth-child(4) .feature-icon {
+        background: linear-gradient(135deg, #FFF8E8 0%, #F8E8C8 100%);
+        color: #A48848;
+    }
+    
+    .feature-item .feature-name {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    
+    /* 装饰分隔线 */
+    .divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-md);
+    }
+    
+    .divider img {
+        width: 60%;
+        max-width: 200px;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 背景 -->
+<div class="mucha-bg"></div>
+
+<!-- 主内容 -->
+<div class="mucha-content no-navbar">
+    <!-- 欢迎区域 -->
+    <div class="welcome-section">
+        <div class="welcome-content">
+            <p class="welcome-greeting">欢迎回来</p>
+            <h1 class="welcome-name">{{ current_user.phone }}</h1>
+            <div class="quick-stats">
+                <div class="quick-stat">
+                    <div class="stat-value">{{ stats.my_courses_count }}</div>
+                    <div class="stat-label">我的课程</div>
+                </div>
+                <div class="quick-stat">
+                    <div class="stat-value">{{ stats.completed_chapters_count }}</div>
+                    <div class="stat-label">已完成</div>
+                </div>
+                <div class="quick-stat">
+                    <div class="stat-value">{{ stats.learning_hours }}</div>
+                    <div class="stat-label">学习时长</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 功能入口 -->
+    <div class="feature-section">
+        <div class="feature-grid">
+            <a href="{{ url_for('mobile.mobile_courses') }}" class="feature-item">
+                <div class="feature-icon">
+                    <i class="ph ph-books"></i>
+                </div>
+                <span class="feature-name">全部课程</span>
+            </a>
+            <a href="{{ url_for('mobile.mobile_my_courses') }}" class="feature-item">
+                <div class="feature-icon">
+                    <i class="ph ph-book-bookmark"></i>
+                </div>
+                <span class="feature-name">我的课程</span>
+            </a>
+            <a href="{{ url_for('mobile.mobile_history') }}" class="feature-item">
+                <div class="feature-icon">
+                    <i class="ph ph-clock-counter-clockwise"></i>
+                </div>
+                <span class="feature-name">播放历史</span>
+            </a>
+            <a href="{{ url_for('mobile.mobile_change_password') }}" class="feature-item">
+                <div class="feature-icon">
+                    <i class="ph ph-key"></i>
+                </div>
+                <span class="feature-name">修改密码</span>
+            </a>
+        </div>
+    </div>
+    
+    <!-- 继续学习 -->
+    {% if last_played %}
+    <div class="continue-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="ph ph-play-circle"></i>
+                继续学习
+            </h2>
+            <a href="{{ url_for('mobile.mobile_history') }}" class="section-more">
+                查看更多 <i class="ph ph-caret-right"></i>
+            </a>
+        </div>
+        <div class="continue-card">
+            <div class="course-name">{{ last_played.course.title }}</div>
+            <div class="chapter-name">{{ last_played.chapter.title }}</div>
+            <div class="progress-wrapper">
+                <div class="progress-info">
+                    <span>学习进度</span>
+                    <span>{{ "%.0f"|format(last_played.progress) }}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ last_played.progress }}%"></div>
+                </div>
+            </div>
+            <a href="{{ url_for('mobile.mobile_play', chapter_id=last_played.chapter_id) }}" class="continue-btn">
+                <i class="ph ph-play-fill"></i>
+                继续学习
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- 推荐课程 -->
+    <div class="recommend-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <i class="ph ph-sparkle"></i>
+                推荐课程
+            </h2>
+            <a href="{{ url_for('mobile.mobile_courses') }}" class="section-more">
+                全部 <i class="ph ph-caret-right"></i>
+            </a>
+        </div>
+        <div class="course-grid">
+            {% for course in recommended_courses %}
+            <a href="{{ url_for('mobile.mobile_course_detail', course_id=course.id) }}" class="course-card">
+                <div class="card-thumb">
+                    {% if course.thumbnail_url %}
+                    <img src="{{ course.thumbnail_url }}" alt="{{ course.title }}" loading="lazy">
+                    {% else %}
+                    <div style="width: 100%; height: 100%; background: linear-gradient(135deg, var(--mucha-purple-light) 0%, var(--mucha-mint-light) 100%); display: flex; align-items: center; justify-content: center; font-size: 32px; color: var(--mucha-purple);">
+                        {{ course.title[0] }}
+                    </div>
+                    {% endif %}
+                    {% if course.id not in allowed_course_ids %}
+                    <div class="lock-overlay">
+                        <i class="ph ph-lock-key"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-info">
+                    <h3 class="card-title">{{ course.title }}</h3>
+                    <div class="card-meta">
+                        {% if course.id in allowed_course_ids %}
+                        <span class="mucha-badge mucha-badge-success">
+                            <i class="ph ph-check-circle"></i> 可学习
+                        </span>
+                        {% else %}
+                        <span class="mucha-badge mucha-badge-warning">
+                            <i class="ph ph-lock-key"></i> 无权限
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block bottom_nav %}
+<!-- 底部导航 -->
+<nav class="mucha-bottom-nav">
+    <a href="{{ url_for('mobile.mobile_dashboard') }}" class="nav-item active">
+        <i class="ph ph-house"></i>
+        <span>首页</span>
+    </a>
+    <a href="{{ url_for('mobile.mobile_courses') }}" class="nav-item">
+        <i class="ph ph-books"></i>
+        <span>课程</span>
+    </a>
+    <a href="{{ url_for('mobile.mobile_my_courses') }}" class="nav-item">
+        <i class="ph ph-book-bookmark"></i>
+        <span>我的</span>
+    </a>
+    <a href="{{ url_for('mobile.mobile_history') }}" class="nav-item">
+        <i class="ph ph-clock-counter-clockwise"></i>
+        <span>历史</span>
+    </a>
+    <a href="{{ url_for('mobile.mobile_change_password') }}" class="nav-item">
+        <i class="ph ph-user"></i>
+        <span>我的</span>
+    </a>
+</nav>
+{% endblock %}

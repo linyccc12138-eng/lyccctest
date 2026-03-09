@@ -1,0 +1,3387 @@
+{% extends 'base.html' %}
+
+{% block title %}视频管理 - {{ site_name }}{% endblock %}
+
+{% block navbar %}
+<!-- 顶部导航栏 - 移动端适配 -->
+<nav class="navbar navbar-admin">
+    <div class="navbar-brand">
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleMobileSidebar()">
+            <i class="ph ph-list"></i>
+        </button>
+        <a href="{{ url_for('admin.dashboard') }}">
+            <i class="ph ph-gear"></i>
+            <span class="brand-text">管理后台</span>
+        </a>
+    </div>
+    <div class="navbar-menu desktop-only">
+        <a href="{{ url_for('admin.users') }}" class="nav-link"><i class="ph ph-users"></i> 用户管理</a>
+        <a href="{{ url_for('admin.courses') }}" class="nav-link"><i class="ph ph-book-open"></i> 课程管理</a>
+        <a href="{{ url_for('admin.videos') }}" class="nav-link active"><i class="ph ph-video"></i> 视频管理</a>
+        <a href="{{ url_for('admin.events') }}" class="nav-link"><i class="ph ph-calendar"></i> 事件管理</a>
+        <a href="{{ url_for('admin.logs') }}" class="nav-link"><i class="ph ph-scroll"></i> 日志管理</a>
+        <a href="{{ url_for('admin.locked') }}" class="nav-link"><i class="ph ph-lock-key"></i> 锁定管理</a>
+        <a href="{{ url_for('admin.system_config') }}" class="nav-link"><i class="ph ph-sliders-horizontal"></i> 系统配置</a>
+        <form action="{{ url_for('auth.logout') }}" method="post" style="display: inline;" id="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link" style="background: none; border: none; cursor: pointer; font-size: inherit;" id="logout-btn">
+                <i class="ph ph-sign-out"></i> 退出
+            </button>
+        </form>
+    </div>
+</nav>
+
+<!-- 移动端侧边栏遮罩 -->
+<div class="mobile-sidebar-overlay" id="mobileSidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+<!-- 移动端侧边栏菜单 -->
+<div class="mobile-sidebar" id="mobileSidebar">
+    <div class="mobile-sidebar-header">
+        <span class="sidebar-title"><i class="ph ph-gear"></i> 管理后台</span>
+        <button class="sidebar-close" onclick="closeMobileSidebar()">
+            <i class="ph ph-x"></i>
+        </button>
+    </div>
+    <div class="mobile-sidebar-menu">
+        <a href="{{ url_for('admin.users') }}" class="mobile-nav-link">
+            <i class="ph ph-users"></i>
+            <span>用户管理</span>
+        </a>
+        <a href="{{ url_for('admin.courses') }}" class="mobile-nav-link">
+            <i class="ph ph-book-open"></i>
+            <span>课程管理</span>
+        </a>
+        <a href="{{ url_for('admin.videos') }}" class="mobile-nav-link active">
+            <i class="ph ph-video"></i>
+            <span>视频管理</span>
+        </a>
+        <a href="{{ url_for('admin.events') }}" class="mobile-nav-link">
+            <i class="ph ph-calendar"></i>
+            <span>事件管理</span>
+        </a>
+        <a href="{{ url_for('admin.logs') }}" class="mobile-nav-link">
+            <i class="ph ph-scroll"></i>
+            <span>日志管理</span>
+        </a>
+        <a href="{{ url_for('admin.locked') }}" class="mobile-nav-link">
+            <i class="ph ph-lock-key"></i>
+            <span>锁定管理</span>
+        </a>
+        <a href="{{ url_for('admin.system_config') }}" class="mobile-nav-link">
+            <i class="ph ph-sliders-horizontal"></i>
+            <span>系统配置</span>
+        </a>
+        <form action="{{ url_for('auth.logout') }}" method="post" id="mobile-logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="mobile-nav-link mobile-logout-btn">
+                <i class="ph ph-sign-out"></i>
+                <span>退出登录</span>
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="page-header">
+        <h1><i class="ph ph-video"></i> 视频文件管理</h1>
+        <div class="header-actions">
+            <button class="btn btn-primary" id="batchUploadBtn" onclick="showBatchUploadModal()">
+                <i class="ph ph-upload-simple"></i>
+                <span class="btn-text">批量上传</span>
+            </button>
+            <button class="btn btn-secondary" onclick="syncAllStatus()">
+                <i class="ph ph-arrows-clockwise"></i>
+                <span class="btn-text">同步状态</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 移动端文件夹选择器 -->
+    <div class="mobile-folder-selector">
+        <div class="folder-select-bar" onclick="toggleMobileFolderPanel()">
+            <span id="mobileCurrentFolderName"><i class="ph ph-folder"></i> 全部视频</span>
+            <i class="ph ph-caret-down" id="mobileFolderToggleIcon"></i>
+        </div>
+        <div class="mobile-folder-panel" id="mobileFolderPanel">
+            <div class="mobile-folder-header">
+                <span>选择文件夹</span>
+                <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); showCreateFolderModal()">
+                    <i class="ph ph-plus"></i> 新建
+                </button>
+            </div>
+            <div class="mobile-folder-list" id="mobileFolderList">
+                <div class="loading"><i class="ph ph-spinner ph-spin"></i> 加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="video-management-layout">
+        <!-- 左侧文件夹树 - 桌面端 -->
+        <div class="folder-sidebar desktop-only">
+            <div class="folder-header">
+                <h3><i class="ph ph-folders"></i> 文件夹</h3>
+                <button class="btn btn-sm btn-primary" onclick="showCreateFolderModal()">
+                    <i class="ph ph-plus"></i> 新建
+                </button>
+            </div>
+            <div class="folder-tree" id="folderTree">
+                <div class="loading"><i class="ph ph-spinner ph-spin"></i> 加载中...</div>
+            </div>
+        </div>
+
+        <!-- 右侧视频列表 -->
+        <div class="video-content">
+            <!-- 当前路径 -->
+            <div class="breadcrumb" id="breadcrumb">
+                <span class="breadcrumb-item"><i class="ph ph-house"></i> 全部视频</span>
+            </div>
+
+            <!-- 筛选和搜索 -->
+            <div class="filter-bar">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label><i class="ph ph-funnel"></i></label>
+                        <select id="statusFilter" onchange="loadVideos()">
+                            <option value="">全部状态</option>
+                            <option value="uploading">上传中</option>
+                            <option value="uploaded">上传完成</option>
+                            <option value="processing">转码中</option>
+                            <option value="completed">转码完成</option>
+                            <option value="deleting">删除中</option>
+                            <option value="deleted">已删除</option>
+                        </select>
+                    </div>
+                    <div class="search-group">
+                        <i class="ph ph-magnifying-glass search-icon"></i>
+                        <input type="text" id="searchInput" placeholder="搜索视频..." onkeyup="if(event.key==='Enter') loadVideos()">
+                    </div>
+                    <div class="filter-group page-size-group">
+                        <label>每页:</label>
+                        <select id="pageSizeSelect" onchange="changePageSize()">
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="all">全部</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 批量操作栏 -->
+            <div class="batch-actions-bar" id="batchActionsBar" style="display:none;">
+                <div class="batch-info">
+                    <span class="selected-count">已选择 <strong id="selectedCount">0</strong> 个</span>
+                    <button class="btn btn-sm btn-text" onclick="clearSelection()">
+                        <i class="ph ph-x"></i> 取消
+                    </button>
+                </div>
+                <div class="batch-buttons">
+                    <button class="btn btn-sm btn-info" id="renameBtn" onclick="showRenameModal()" style="background-color: #d4edda; border: 1px solid #d4edda; color: #155724;">
+                        <i class="ph ph-pencil-simple"></i> <span class="btn-label">重命名</span>
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="showMoveFolderModal()">
+                        <i class="ph ph-folder-notch-move"></i> <span class="btn-label">移动</span>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="batchDeleteVideos()">
+                        <i class="ph ph-trash"></i> <span class="btn-label">删除</span>
+                    </button>
+                    <button class="btn btn-sm btn-warning" onclick="batchDeleteRecords()">
+                        <i class="ph ph-eraser"></i> <span class="btn-label">删除记录</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 桌面端表格 -->
+            <div class="video-table-container desktop-only">
+                <table class="data-table video-list-table">
+                    <thead>
+                        <tr>
+                            <th width="50" style="text-align: center;">
+                                <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" class="checkbox-lg">
+                            </th>
+                            <th>文件名</th>
+                            <th>大小</th>
+                            <th>视频信息</th>
+                            <th>时长</th>
+                            <th>状态</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="videoTableBody">
+                        <tr>
+                            <td colspan="8" class="loading-cell">
+                                <i class="ph ph-spinner ph-spin"></i> 加载中...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 移动端卡片列表 -->
+            <div class="video-card-container mobile-only" id="videoCardContainer">
+                <div class="loading-card">
+                    <i class="ph ph-spinner ph-spin"></i> 加载中...
+                </div>
+            </div>
+
+            <!-- 分页 -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 创建文件夹模态框 -->
+<div id="createFolderModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="ph ph-folder-plus"></i> 新建文件夹</h3>
+            <button class="close-btn" onclick="hideCreateFolderModal()">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>文件夹名称</label>
+                <input type="text" id="newFolderName" placeholder="请输入文件夹名称">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideCreateFolderModal()">取消</button>
+            <button type="button" class="btn btn-primary" onclick="createFolder()">
+                <i class="ph ph-check"></i> 创建
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 批量上传模态框 -->
+<div id="batchUploadModal" class="modal">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <div class="modal-title-wrap">
+                <h3><i class="ph ph-upload-simple"></i> 批量上传视频</h3>
+                <span class="current-folder-name" id="uploadFolderName"></span>
+            </div>
+            <button class="close-btn" onclick="hideBatchUploadModal()">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="batchFileInput" multiple accept="video/*" style="display:none">
+                <div class="upload-placeholder" onclick="document.getElementById('batchFileInput').click()">
+                    <div class="upload-icon"><i class="ph ph-cloud-arrow-up"></i></div>
+                    <p class="upload-title">点击选择视频文件</p>
+                    <p class="upload-subtitle">或拖拽文件到此处</p>
+                    <p class="text-muted">支持批量选择多个视频文件</p>
+                </div>
+            </div>
+
+            <div class="upload-queue" id="uploadQueue" style="display:none">
+                <h4><i class="ph ph-list-dashes"></i> 上传队列</h4>
+                <div class="queue-list" id="queueList"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideBatchUploadModal()">关闭</button>
+            <button type="button" class="btn btn-primary" id="startUploadBtn" onclick="startBatchUpload()" style="display:none">
+                <i class="ph ph-play"></i> 开始上传
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 视频详情模态框 -->
+<div id="videoDetailModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="ph ph-info"></i> 视频详情</h3>
+            <button class="close-btn" onclick="hideVideoDetailModal()">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="videoDetailBody">
+            <div class="detail-loading"><i class="ph ph-spinner ph-spin"></i> 加载中...</div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideVideoDetailModal()">关闭</button>
+            <button type="button" class="btn btn-danger" id="deleteVideoBtn" onclick="deleteCurrentVideo()">
+                <i class="ph ph-trash"></i> 删除视频
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 重命名模态框 -->
+<div id="renameModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3><i class="ph ph-pencil-simple"></i> 重命名</h3>
+            <button class="close-btn" onclick="hideRenameModal()">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>新文件名 <span class="text-muted">(不含后缀)</span></label>
+                <input type="text" id="renameInput" class="form-control" placeholder="请输入新文件名">
+                <input type="hidden" id="renameVideoId">
+                <input type="hidden" id="renameOriginalName">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideRenameModal()">取消</button>
+            <button type="button" class="btn btn-primary" onclick="submitRename()">
+                <i class="ph ph-check"></i> 确定
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 调整分类模态框 -->
+<div id="moveFolderModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="ph ph-folder-notch-move"></i> 调整分类</h3>
+            <button class="close-btn" onclick="hideMoveFolderModal()">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>请选择目标文件夹：</p>
+            <div class="folder-select-tree" id="folderSelectTree">
+                <div class="loading"><i class="ph ph-spinner ph-spin"></i> 加载中...</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideMoveFolderModal()">取消</button>
+            <button type="button" class="btn btn-primary" onclick="submitMoveFolder()">
+                <i class="ph ph-check"></i> 确定移动
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 自定义居中消息弹窗 -->
+<div id="customAlertModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3 id="customAlertTitle"><i class="ph ph-info"></i> 提示</h3>
+            <button class="close-btn" onclick="hideCustomAlert()">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div class="modal-body text-center">
+            <div class="alert-icon" id="customAlertIcon">
+                <i class="ph ph-info"></i>
+            </div>
+            <p id="customAlertMessage" class="alert-message"></p>
+        </div>
+        <div class="modal-footer" style="justify-content: center;">
+            <button type="button" class="btn btn-primary" onclick="hideCustomAlert()">确定</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Phosphor Icons -->
+<script src="/static/vendor/phosphor-icons/index.js"></script>
+<!-- 引入VOD JS SDK -->
+<script src="https://cdn-go.cn/cdn/vod-js-sdk-v6/latest/vod-js-sdk-v6.js"></script>
+<script>
+// 调试版本标记
+console.log('[VideoManager] 脚本加载时间: ' + new Date().toISOString());
+
+    // ============== 移动端侧边栏控制 ==============
+    function toggleMobileSidebar() {
+        var sidebar = document.getElementById('mobileSidebar');
+        var overlay = document.getElementById('mobileSidebarOverlay');
+        sidebar.classList.toggle('show');
+        overlay.classList.toggle('show');
+        document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
+    }
+    
+    function closeMobileSidebar() {
+        var sidebar = document.getElementById('mobileSidebar');
+        var overlay = document.getElementById('mobileSidebarOverlay');
+        sidebar.classList.remove('show');
+        overlay.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    // ============== 移动端文件夹面板控制 ==============
+    function toggleMobileFolderPanel() {
+        var panel = document.getElementById('mobileFolderPanel');
+        var icon = document.getElementById('mobileFolderToggleIcon');
+        panel.classList.toggle('show');
+        icon.classList.toggle('ph-caret-down');
+        icon.classList.toggle('ph-caret-up');
+    }
+    
+    function closeMobileFolderPanel() {
+        var panel = document.getElementById('mobileFolderPanel');
+        var icon = document.getElementById('mobileFolderToggleIcon');
+        panel.classList.remove('show');
+        icon.classList.add('ph-caret-down');
+        icon.classList.remove('ph-caret-up');
+    }
+
+    // ============== 自定义居中弹窗 ==============
+    function showCustomAlert(message, title, type) {
+        title = title || '提示';
+        type = type || 'info';
+        document.getElementById('customAlertTitle').textContent = title;
+        document.getElementById('customAlertMessage').textContent = message;
+        
+        var iconHtml = '<i class="ph ph-info"></i>';
+        if (type === 'success') iconHtml = '<i class="ph ph-check-circle"></i>';
+        if (type === 'error') iconHtml = '<i class="ph ph-x-circle"></i>';
+        if (type === 'warning') iconHtml = '<i class="ph ph-warning-circle"></i>';
+        document.getElementById('customAlertIcon').innerHTML = iconHtml;
+        
+        document.getElementById('customAlertModal').classList.add('show');
+    }
+    
+    function hideCustomAlert() {
+        document.getElementById('customAlertModal').classList.remove('show');
+    }
+
+    var currentPage = 1;
+    var pageSize = 20; // 默认每页20条，可选all表示不分页
+    var selectedFiles = [];
+    var uploaders = [];
+    var tcVod = null;
+    var currentVideoId = null;
+    var currentFolderId = null;
+    var currentFolderName = '';
+    var selectedVideoIds = new Set();
+    var folderTreeData = [];
+
+    // 处理状态映射（上传状态 + 转码状态合并）
+    var processStatusMap = {
+        'uploading': { text: '上传中', class: 'status-uploading', icon: 'ph-upload-simple' },
+        'uploaded': { text: '上传完成', class: 'status-uploaded', icon: 'ph-check' },
+        'processing': { text: '转码中', class: 'status-processing', icon: 'ph-arrows-clockwise' },
+        'completed': { text: '转码完成', class: 'status-completed', icon: 'ph-check-circle' },
+        'deleting': { text: '删除中', class: 'status-deleting', icon: 'ph-trash' },
+        'deleted': { text: '已删除', class: 'status-deleted', icon: 'ph-x' }
+    };
+
+    // 页面加载完成后加载文件夹树和视频列表
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('[Init] 页面加载完成，初始化中...');
+        loadFolderTree();
+        initVodSdk();
+        setupDragDrop();
+        // 初始页面显示全部视频（不指定文件夹）
+        loadVideos(1);
+        console.log('[Init] 初始化完成');
+    });
+
+    // 初始化VOD SDK
+    function initVodSdk() {
+        console.log('[InitVodSdk] 初始化TcVod SDK...');
+        try {
+            if (typeof TcVod === 'undefined') {
+                console.error('[InitVodSdk] TcVod SDK未加载!');
+                return;
+            }
+            console.log('[InitVodSdk] TcVod对象:', typeof TcVod, TcVod);
+            tcVod = new TcVod.default({
+                getSignature: getSignature
+            });
+            console.log('[InitVodSdk] TcVod SDK初始化成功');
+        } catch (e) {
+            console.error('[InitVodSdk] TcVod SDK初始化失败:', e);
+        }
+    }
+
+    // 获取上传签名
+    function getSignature() {
+        return fetch('/admin/api/upload-signature')
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    return data.signature;
+                } else {
+                    throw new Error(data.error || '获取签名失败');
+                }
+            });
+    }
+
+    // ==================== 文件夹管理 ====================
+
+    function loadFolderTree() {
+        fetch('/admin/api/folders/tree')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    folderTreeData = data.tree;
+                    renderFolderTree(data.tree, document.getElementById('folderTree'));
+                    renderMobileFolderList(data.tree);
+                }
+            });
+    }
+
+    function renderFolderTree(folders, container, level) {
+        level = level || 0;
+        container.innerHTML = '';
+
+        if (folders.length === 0 && level === 0) {
+            container.innerHTML = '<div class="empty-folder"><i class="ph ph-folder-open"></i> 暂无文件夹，点击上方"新建"创建</div>';
+            return;
+        }
+
+        folders.forEach(function(folder) {
+            var item = document.createElement('div');
+            item.className = 'folder-item';
+            item.setAttribute('data-id', folder.id);
+            item.setAttribute('data-name', folder.name);
+
+            var padding = level * 20;
+            var hasChildren = folder.children && folder.children.length > 0;
+            var expandIcon = hasChildren ? 'ph-caret-down' : 'ph-caret-right';
+
+            item.innerHTML =
+                '<div class="folder-item-content" style="padding-left:' + padding + 'px" onclick="selectFolder(' + folder.id + ', \'' + escapeJs(folder.name) + '\')">' +
+                    '<span class="folder-expand-icon" onclick="toggleFolder(event, ' + folder.id + ')"><i class="ph ' + expandIcon + '"></i></span>' +
+                    '<span class="folder-icon"><i class="ph ph-folder"></i></span>' +
+                    '<span class="folder-name">' + escapeHtml(folder.name) + '</span>' +
+                    '<span class="folder-actions" onclick="event.stopPropagation()">' +
+                        '<button class="btn-icon" onclick="deleteFolder(' + folder.id + ', event)" title="删除文件夹"><i class="ph ph-trash"></i></button>' +
+                    '</span>' +
+                '</div>' +
+                '<div class="folder-children" id="folder-children-' + folder.id + '" style="display:none;"></div>';
+
+            container.appendChild(item);
+
+            // 递归渲染子文件夹
+            if (folder.children && folder.children.length > 0) {
+                var childrenContainer = item.querySelector('#folder-children-' + folder.id);
+                renderFolderTree(folder.children, childrenContainer, level + 1);
+            }
+        });
+    }
+    
+    // 渲染移动端文件夹列表
+    function renderMobileFolderList(folders) {
+        var container = document.getElementById('mobileFolderList');
+        container.innerHTML = '';
+        
+        // 添加"全部视频"选项
+        var allItem = document.createElement('div');
+        allItem.className = 'mobile-folder-item' + (currentFolderId === null ? ' active' : '');
+        allItem.innerHTML = '<i class="ph ph-house"></i> 全部视频';
+        allItem.onclick = function() {
+            selectFolder(null, '全部视频');
+            closeMobileFolderPanel();
+        };
+        container.appendChild(allItem);
+        
+        // 渲染文件夹
+        renderMobileFolderItems(folders, container, 0);
+    }
+    
+    function renderMobileFolderItems(folders, container, level) {
+        folders.forEach(function(folder) {
+            var item = document.createElement('div');
+            item.className = 'mobile-folder-item' + (currentFolderId === folder.id ? ' active' : '');
+            item.style.paddingLeft = (16 + level * 20) + 'px';
+            item.innerHTML = '<i class="ph ph-folder"></i> ' + escapeHtml(folder.name);
+            item.onclick = function() {
+                selectFolder(folder.id, folder.name);
+                closeMobileFolderPanel();
+            };
+            container.appendChild(item);
+            
+            if (folder.children && folder.children.length > 0) {
+                renderMobileFolderItems(folder.children, container, level + 1);
+            }
+        });
+    }
+
+    function toggleFolder(event, folderId) {
+        event.stopPropagation();
+        var childrenDiv = document.getElementById('folder-children-' + folderId);
+        var icon = event.target.querySelector('i') || event.target;
+        if (childrenDiv.style.display === 'none') {
+            childrenDiv.style.display = 'block';
+            icon.classList.remove('ph-caret-right');
+            icon.classList.add('ph-caret-down');
+        } else {
+            childrenDiv.style.display = 'none';
+            icon.classList.remove('ph-caret-down');
+            icon.classList.add('ph-caret-right');
+        }
+    }
+
+    function selectFolder(folderId, folderName) {
+        currentFolderId = folderId;
+        currentFolderName = folderName;
+
+        // 更新UI
+        document.querySelectorAll('.folder-item').forEach(function(item) {
+            item.classList.remove('active');
+        });
+        
+        if (folderId) {
+            var selectedItem = document.querySelector('.folder-item[data-id="' + folderId + '"]');
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+            }
+        }
+
+        // 更新面包屑
+        var folderIcon = folderId ? '<i class="ph ph-folder"></i>' : '<i class="ph ph-house"></i>';
+        document.getElementById('breadcrumb').innerHTML =
+            '<span class="breadcrumb-item">' + folderIcon + ' ' + escapeHtml(folderName) + '</span>';
+        
+        // 更新移动端文件夹选择器显示
+        document.getElementById('mobileCurrentFolderName').innerHTML = 
+            '<i class="ph ph-folder"></i> ' + escapeHtml(folderName);
+
+        // 重新渲染移动端文件夹列表以更新选中状态
+        renderMobileFolderList(folderTreeData);
+
+        // 文件夹已选择，可以上传视频
+
+        // 加载视频列表
+        loadVideos(1);
+    }
+
+    function showCreateFolderModal() {
+        document.getElementById('createFolderModal').classList.add('show');
+        document.getElementById('newFolderName').value = '';
+        document.getElementById('newFolderName').focus();
+    }
+
+    function hideCreateFolderModal() {
+        document.getElementById('createFolderModal').classList.remove('show');
+    }
+
+    function createFolder() {
+        var name = document.getElementById('newFolderName').value.trim();
+        if (!name) {
+            showCustomAlert('请输入文件夹名称', '提示', 'warning');
+            return;
+        }
+
+        fetch('/admin/api/folders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: JSON.stringify({
+                name: name,
+                parent_id: currentFolderId || null
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                hideCreateFolderModal();
+                loadFolderTree();
+                if (currentFolderId) {
+                    // 展开当前文件夹
+                    setTimeout(function() {
+                        var childrenDiv = document.getElementById('folder-children-' + currentFolderId);
+                        if (childrenDiv) {
+                            childrenDiv.style.display = 'block';
+                        }
+                    }, 100);
+                }
+            } else {
+                showCustomAlert('创建失败: ' + (data.error || '未知错误'), '错误', 'error');
+            }
+        });
+    }
+
+    function deleteFolder(folderId, event) {
+        event.stopPropagation();
+        if (!confirm('确定要删除此文件夹吗？文件夹必须为空才能删除。')) return;
+
+        fetch('/admin/api/folders/' + folderId, {
+            method: 'DELETE'
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                loadFolderTree();
+                if (currentFolderId === folderId) {
+                    currentFolderId = null;
+                    currentFolderName = '';
+                    document.getElementById('breadcrumb').innerHTML = '<span class="breadcrumb-item"><i class="ph ph-house"></i> 全部视频</span>';
+                    document.getElementById('videoTableBody').innerHTML = '<tr><td colspan="10" class="loading-cell"><i class="ph ph-spinner ph-spin"></i> 请从左侧选择一个文件夹</td></tr>';
+                    document.getElementById('videoCardContainer').innerHTML = '<div class="loading-card"><i class="ph ph-spinner ph-spin"></i> 请选择一个文件夹</div>';
+                    document.getElementById('pagination').innerHTML = '';
+                }
+            } else {
+                showCustomAlert('删除失败: ' + (data.error || '未知错误'), '错误', 'error');
+            }
+        });
+    }
+
+    // ==================== 视频列表 ====================
+
+    function loadVideos(page) {
+        if (page) currentPage = page;
+
+        var status = document.getElementById('statusFilter').value;
+        var search = document.getElementById('searchInput').value;
+
+        // 构建URL，如果没有选择文件夹，则不传folder_id，显示全部视频
+        var url = '/admin/api/videos?page=' + currentPage;
+        if (currentFolderId) url += '&folder_id=' + currentFolderId;
+        if (pageSize !== 'all') url += '&per_page=' + pageSize;
+        if (status) url += '&process_status=' + status;
+        if (search) url += '&search=' + encodeURIComponent(search);
+
+        var loadingHtml = '<tr><td colspan="9" class="loading-cell"><i class="ph ph-spinner ph-spin"></i> 加载中...</td></tr>';
+        var cardLoadingHtml = '<div class="loading-card"><i class="ph ph-spinner ph-spin"></i> 加载中...</div>';
+        
+        document.getElementById('videoTableBody').innerHTML = loadingHtml;
+        document.getElementById('videoCardContainer').innerHTML = cardLoadingHtml;
+
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    renderVideoTable(data.videos);
+                    renderVideoCards(data.videos);
+                    renderPagination(data);
+                    updateSelectAllCheckbox();
+                    // 自动为正在处理中的视频启动状态监控
+                    autoStartMonitoring(data.videos);
+                } else {
+                    var errorHtml = '<tr><td colspan="9" class="error-cell"><i class="ph ph-warning-circle"></i> 加载失败: ' + (data.error || '未知错误') + '</td></tr>';
+                    var cardErrorHtml = '<div class="error-card"><i class="ph ph-warning-circle"></i> 加载失败</div>';
+                    document.getElementById('videoTableBody').innerHTML = errorHtml;
+                    document.getElementById('videoCardContainer').innerHTML = cardErrorHtml;
+                }
+            })
+            .catch(function(error) {
+                var errorHtml = '<tr><td colspan="9" class="error-cell"><i class="ph ph-warning-circle"></i> 加载出错: ' + error + '</td></tr>';
+                var cardErrorHtml = '<div class="error-card"><i class="ph ph-warning-circle"></i> 加载出错</div>';
+                document.getElementById('videoTableBody').innerHTML = errorHtml;
+                document.getElementById('videoCardContainer').innerHTML = cardErrorHtml;
+            });
+    }
+
+    // 页面加载时不自动启动监控，只在用户操作时启动
+    function autoStartMonitoring(videos) {
+        // 不自动启动任何监控任务
+        console.log('[AutoMonitor] 页面加载，不自动启动监控任务');
+        return;
+    }
+
+    // ==================== 任务监控管理 ====================
+    // 存储正在监控的任务
+    var activeTasks = new Map(); // videoId -> {type, timer, timeout, startTime}
+
+    // 启动上传/转码任务监控 (每10秒检查，超时600秒)
+    function startUploadTranscodeMonitor(videoId) {
+        // 如果已有任务，先停止
+        stopTaskMonitor(videoId);
+        
+        console.log('[TaskMonitor] 启动上传/转码监控: videoId=' + videoId);
+        
+        var checkCount = 0;
+        var maxChecks = 60; // 600秒 / 10秒 = 60次
+        
+        var taskInfo = {
+            type: 'upload_transcode',
+            startTime: Date.now(),
+            timer: null,
+            timeout: setTimeout(function() {
+                // 600秒超时
+                console.log('[TaskMonitor] 上传/转码监控超时: videoId=' + videoId);
+                stopTaskMonitor(videoId);
+            }, 600000) // 600秒
+        };
+        
+        // 立即检查一次
+        checkTaskStatus(videoId);
+        
+        // 每10秒检查
+        taskInfo.timer = setInterval(function() {
+            checkCount++;
+            if (checkCount >= maxChecks) {
+                console.log('[TaskMonitor] 达到最大检查次数，停止监控: videoId=' + videoId);
+                stopTaskMonitor(videoId);
+                return;
+            }
+            checkTaskStatus(videoId);
+        }, 10000);
+        
+        activeTasks.set(videoId, taskInfo);
+    }
+
+    // 启动删除任务监控 (每1秒检查，超时5秒)
+    function startDeleteMonitor(videoId) {
+        // 如果已有任务，先停止
+        stopTaskMonitor(videoId);
+
+        console.log('[TaskMonitor] 启动删除监控: videoId=' + videoId);
+
+        var checkCount = 0;
+        var maxChecks = 5; // 5秒 / 1秒 = 5次
+
+        var taskInfo = {
+            type: 'delete',
+            startTime: Date.now(),
+            timer: null,
+            timeout: setTimeout(function() {
+                console.log('[TaskMonitor] 删除监控超时: videoId=' + videoId);
+                stopTaskMonitor(videoId);
+                // 超时后尝试同步删除状态
+                syncDeletionStatusForVideo(videoId);
+            }, 5000) // 5秒
+        };
+
+        // 立即检查一次
+        checkTaskStatus(videoId);
+
+        // 每1秒检查
+        taskInfo.timer = setInterval(function() {
+            checkCount++;
+            if (checkCount >= maxChecks) {
+                console.log('[TaskMonitor] 达到最大检查次数，停止监控: videoId=' + videoId);
+                stopTaskMonitor(videoId);
+                return;
+            }
+            checkTaskStatus(videoId);
+        }, 1000);
+
+        activeTasks.set(videoId, taskInfo);
+    }
+
+    // 启动封面下载监控 (每2秒检查，超时20秒)
+    function startCoverDownloadMonitor(videoId) {
+        // 如果已有任务，先停止
+        stopTaskMonitor(videoId);
+
+        console.log('[TaskMonitor] 启动封面下载监控: videoId=' + videoId);
+
+        var checkCount = 0;
+        var maxChecks = 10; // 20秒 / 2秒 = 10次
+
+        var taskInfo = {
+            type: 'cover_download',
+            startTime: Date.now(),
+            timer: null,
+            timeout: setTimeout(function() {
+                console.log('[TaskMonitor] 封面下载监控超时: videoId=' + videoId);
+                stopTaskMonitor(videoId);
+            }, 20000) // 20秒
+        };
+
+        // 立即检查一次
+        checkCoverDownloadStatus(videoId);
+
+        // 每2秒检查
+        taskInfo.timer = setInterval(function() {
+            checkCount++;
+            if (checkCount >= maxChecks) {
+                console.log('[TaskMonitor] 封面下载达到最大检查次数，停止监控: videoId=' + videoId);
+                stopTaskMonitor(videoId);
+                return;
+            }
+            checkCoverDownloadStatus(videoId);
+        }, 2000);
+
+        activeTasks.set(videoId, taskInfo);
+    }
+
+    // 检查封面下载状态
+    function checkCoverDownloadStatus(videoId) {
+        fetch('/admin/api/videos/' + videoId + '/status')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var video = data.video;
+                    var taskInfo = activeTasks.get(videoId);
+
+                    if (!taskInfo || taskInfo.type !== 'cover_download') return;
+
+                    // 封面下载完成条件: local_cover_path 有值
+                    if (video.local_cover_path) {
+                        console.log('[TaskMonitor] 封面下载完成: videoId=' + videoId);
+                        stopTaskMonitor(videoId);
+                        loadVideos(); // 刷新页面
+                    } else if (video.process_status === 'completed' && !video.cover_url) {
+                        // 处理完成但没有封面URL，可能封面下载失败
+                        console.log('[TaskMonitor] 处理完成但无封面: videoId=' + videoId);
+                        stopTaskMonitor(videoId);
+                        loadVideos();
+                    }
+                }
+            })
+            .catch(function(err) {
+                console.error('[TaskMonitor] 检查封面状态失败: videoId=' + videoId, err);
+            });
+    }
+
+    // 同步单个视频的删除状态
+    function syncDeletionStatusForVideo(videoId) {
+        console.log('[SyncDelete] 同步删除状态: videoId=' + videoId);
+        fetch('/admin/api/videos/' + videoId + '/sync-deletion', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': window.getCsrfToken()
+            }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                console.log('[SyncDelete] 同步成功: videoId=' + videoId);
+                loadVideos();
+            }
+        })
+        .catch(function(err) {
+            console.error('[SyncDelete] 同步失败: videoId=' + videoId, err);
+        });
+    }
+
+    // 检查任务状态
+    function checkTaskStatus(videoId) {
+        fetch('/admin/api/videos/' + videoId + '/status')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var video = data.video;
+                    var taskInfo = activeTasks.get(videoId);
+
+                    if (!taskInfo) return;
+
+                    if (taskInfo.type === 'upload_transcode') {
+                        // 上传/转码任务完成条件: process_status 为 completed
+                        if (video.process_status === 'completed') {
+                            console.log('[TaskMonitor] 处理完成，检查封面: videoId=' + videoId);
+                            // 处理完成，自动下载封面
+                            if (!video.local_cover_path && video.file_id) {
+                                // 还没有本地封面，尝试下载
+                                downloadVideoCover(videoId, video.file_id, function() {
+                                    console.log('[TaskMonitor] 封面处理完成: videoId=' + videoId);
+                                    stopTaskMonitor(videoId);
+                                    loadVideos(); // 刷新页面
+                                });
+                            } else {
+                                // 已有封面，直接完成
+                                console.log('[TaskMonitor] 已有封面，任务完成: videoId=' + videoId);
+                                stopTaskMonitor(videoId);
+                                loadVideos();
+                            }
+                        }
+                    } else if (taskInfo.type === 'delete') {
+                        // 删除任务完成条件: process_status 为 deleted
+                        if (video.process_status === 'deleted') {
+                            console.log('[TaskMonitor] 删除任务完成: videoId=' + videoId);
+                            stopTaskMonitor(videoId);
+                            loadVideos(); // 刷新页面
+                        }
+                    }
+                }
+            })
+            .catch(function(err) {
+                console.error('[TaskMonitor] 检查状态失败: videoId=' + videoId, err);
+            });
+    }
+
+    // 下载视频封面
+    function downloadVideoCover(videoId, fileId, callback) {
+        console.log('[CoverDownload] 开始下载封面: videoId=' + videoId + ', fileId=' + fileId);
+        fetch('/admin/api/videos/' + videoId + '/download-cover', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': window.getCsrfToken()
+            }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                console.log('[CoverDownload] 封面下载成功: videoId=' + videoId);
+            } else {
+                console.warn('[CoverDownload] 封面下载失败: videoId=' + videoId + ', error=' + (data.error || '未知错误'));
+            }
+            if (callback) callback();
+        })
+        .catch(function(err) {
+            console.error('[CoverDownload] 下载封面出错: videoId=' + videoId, err);
+            if (callback) callback();
+        });
+    }
+
+    // 停止任务监控
+    function stopTaskMonitor(videoId) {
+        var taskInfo = activeTasks.get(videoId);
+        if (taskInfo) {
+            if (taskInfo.timer) {
+                clearInterval(taskInfo.timer);
+            }
+            if (taskInfo.timeout) {
+                clearTimeout(taskInfo.timeout);
+            }
+            activeTasks.delete(videoId);
+            console.log('[TaskMonitor] 停止监控: videoId=' + videoId);
+        }
+    }
+
+    // 停止所有任务监控 (页面卸载时)
+    function stopAllTaskMonitors() {
+        activeTasks.forEach(function(taskInfo, videoId) {
+            stopTaskMonitor(videoId);
+        });
+    }
+
+    function renderVideoTable(videos) {
+        var tbody = document.getElementById('videoTableBody');
+
+        if (!videos || videos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-cell"><i class="ph ph-video-slash"></i> 该文件夹暂无视频文件</td></tr>';
+            return;
+        }
+
+        var html = '';
+        videos.forEach(function(video) {
+            var processStatus = processStatusMap[video.process_status] || { text: video.process_status, class: '', icon: 'ph-question' };
+
+            var sizeText = video.size ? formatFileSize(video.size) : '-';
+            var isSelected = selectedVideoIds.has(video.id);
+
+            // 已删除的视频行添加样式
+            var isDeleted = video.process_status === 'deleted';
+            var rowClass = isDeleted ? 'deleted-row' : '';
+
+            html += '<tr class="' + rowClass + '">';
+            // 勾选框
+            html += '<td style="text-align: center;"><input type="checkbox" class="video-checkbox checkbox-lg" value="' + video.id + '" data-status="' + video.process_status + '" ' + (isSelected ? 'checked' : '') + ' onchange="toggleVideoSelection(' + video.id + ', this.checked)"></td>';
+            html += '<td>' + escapeHtml(video.file_name || video.title || '-') + '</td>';
+            html += '<td>' + sizeText + '</td>';
+            // 视频信息：Width*Height, Bitrate
+            var videoInfo = '-';
+            if (video.width && video.height) {
+                videoInfo = video.width + '*' + video.height;
+                if (video.bitrate) {
+                    videoInfo += ', ' + formatBitrate(video.bitrate);
+                }
+            }
+            html += '<td>' + videoInfo + '</td>';
+            // 时长
+            html += '<td>' + (video.duration ? formatDuration(video.duration) : '-') + '</td>';
+            html += '<td><span class="status-badge ' + processStatus.class + '"><i class="ph ' + processStatus.icon + '"></i> ' + processStatus.text + '</span></td>';
+            html += '<td>' + (video.created_at || '-') + '</td>';
+            html += '<td>';
+            html += '<button class="btn btn-sm btn-secondary" onclick="showVideoDetail(' + video.id + ')"><i class="ph ph-info"></i> 详情</button>';
+            html += '</td>';
+            html += '</tr>';
+        });
+
+        tbody.innerHTML = html;
+    }
+    
+    // 渲染移动端卡片
+    function renderVideoCards(videos) {
+        var container = document.getElementById('videoCardContainer');
+        
+        if (!videos || videos.length === 0) {
+            container.innerHTML = '<div class="empty-card"><i class="ph ph-video-slash"></i> 暂无视频文件</div>';
+            return;
+        }
+        
+        var html = '';
+        videos.forEach(function(video) {
+            var processStatus = processStatusMap[video.process_status] || { text: video.process_status, class: '', icon: 'ph-question' };
+            var sizeText = video.size ? formatFileSize(video.size) : '-';
+            var isSelected = selectedVideoIds.has(video.id);
+            var isDeleted = video.process_status === 'deleted';
+            var cardClass = isDeleted ? 'deleted' : '';
+            var checkedAttr = isSelected ? 'checked' : '';
+            
+            // 视频信息
+            var videoInfo = '-';
+            if (video.width && video.height) {
+                videoInfo = video.width + '*' + video.height;
+            }
+            
+            html += '<div class="video-card ' + cardClass + '">';
+            html += '<div class="card-header">';
+            html += '<div class="card-checkbox">';
+            html += '<input type="checkbox" class="video-checkbox" value="' + video.id + '" data-status="' + video.process_status + '" ' + checkedAttr + ' onchange="toggleVideoSelection(' + video.id + ', this.checked)">';
+            html += '</div>';
+            html += '<div class="card-title">' + escapeHtml(video.file_name || video.title || '-') + '</div>';
+            html += '</div>';
+            html += '<div class="card-body">';
+            html += '<div class="card-meta">';
+            html += '<span><i class="ph ph-hard-drives"></i> ' + sizeText + '</span>';
+            html += '<span><i class="ph ph-film-strip"></i> ' + videoInfo + '</span>';
+            html += '</div>';
+            html += '<div class="card-meta">';
+            html += '<span><i class="ph ph-clock"></i> ' + (video.duration ? formatDuration(video.duration) : '-') + '</span>';
+            html += '<span class="status-badge ' + processStatus.class + '"><i class="ph ' + processStatus.icon + '"></i> ' + processStatus.text + '</span>';
+            html += '</div>';
+            html += '</div>';
+            html += '<div class="card-footer">';
+            html += '<span class="card-time"><i class="ph ph-calendar"></i> ' + (video.created_at || '-') + '</span>';
+            html += '<button class="btn btn-sm btn-secondary" onclick="showVideoDetail(' + video.id + ')"><i class="ph ph-info"></i> 详情</button>';
+            html += '</div>';
+            html += '</div>';
+        });
+        
+        container.innerHTML = html;
+    }
+
+    // ==================== 勾选框功能 ====================
+
+    function toggleSelectAll() {
+        var selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        var checkboxes = document.querySelectorAll('.video-checkbox');
+
+        checkboxes.forEach(function(cb) {
+            cb.checked = selectAllCheckbox.checked;
+            var videoId = parseInt(cb.value);
+            if (selectAllCheckbox.checked) {
+                selectedVideoIds.add(videoId);
+            } else {
+                selectedVideoIds.delete(videoId);
+            }
+        });
+
+        updateBatchActionsBar();
+    }
+
+    function toggleVideoSelection(videoId, checked) {
+        if (checked) {
+            selectedVideoIds.add(videoId);
+        } else {
+            selectedVideoIds.delete(videoId);
+        }
+        updateSelectAllCheckbox();
+        updateBatchActionsBar();
+    }
+
+    function updateSelectAllCheckbox() {
+        var checkboxes = document.querySelectorAll('.video-checkbox');
+        var selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+        if (checkboxes.length === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.disabled = true;
+            return;
+        }
+
+        selectAllCheckbox.disabled = false;
+        var allChecked = true;
+        checkboxes.forEach(function(cb) {
+            if (!cb.checked) allChecked = false;
+        });
+        selectAllCheckbox.checked = allChecked;
+    }
+
+    function updateBatchActionsBar() {
+        var bar = document.getElementById('batchActionsBar');
+        var count = selectedVideoIds.size;
+        document.getElementById('selectedCount').textContent = count;
+
+        if (count > 0) {
+            bar.style.display = 'flex';
+            // 根据选择状态更新按钮可用性
+            updateBatchButtonsState();
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    // 根据选择的视频状态更新批量操作按钮状态
+    function updateBatchButtonsState() {
+        var hasNormal = false;      // 有正常状态（未删除）的视频
+        var hasDeleted = false;     // 有已删除状态的视频
+
+        // 遍历所有选中的视频
+        selectedVideoIds.forEach(function(videoId) {
+            // 从DOM中获取视频状态
+            var checkbox = document.querySelector('.video-checkbox[value="' + videoId + '"]');
+            if (checkbox) {
+                var status = checkbox.getAttribute('data-status');
+                if (status === 'deleted') {
+                    hasDeleted = true;
+                } else {
+                    hasNormal = true;
+                }
+            }
+        });
+        
+        // 更新重命名按钮状态
+        updateRenameButtonState();
+
+        // 获取按钮
+        var deleteVideoBtn = document.querySelector('button[onclick="batchDeleteVideos()"]');
+        var deleteRecordBtn = document.querySelector('button[onclick="batchDeleteRecords()"]');
+
+        // 如果有已删除的视频，禁用"删除视频"按钮
+        if (deleteVideoBtn) {
+            deleteVideoBtn.disabled = hasDeleted;
+            if (hasDeleted) {
+                deleteVideoBtn.title = '选中视频包含已删除状态，无法删除视频';
+                deleteVideoBtn.classList.add('btn-disabled');
+            } else {
+                deleteVideoBtn.title = '删除选中的视频（同时删除云端文件）';
+                deleteVideoBtn.classList.remove('btn-disabled');
+            }
+        }
+
+        // 如果有非已删除的视频，禁用"删除记录"按钮
+        if (deleteRecordBtn) {
+            deleteRecordBtn.disabled = hasNormal;
+            if (hasNormal) {
+                deleteRecordBtn.title = '选中视频包含未删除状态，请先删除视频';
+                deleteRecordBtn.classList.add('btn-disabled');
+            } else {
+                deleteRecordBtn.title = '删除数据库记录（仅用于已删除状态的视频）';
+                deleteRecordBtn.classList.remove('btn-disabled');
+            }
+        }
+    }
+
+    function clearSelection() {
+        selectedVideoIds.clear();
+        document.querySelectorAll('.video-checkbox').forEach(function(cb) {
+            cb.checked = false;
+        });
+        document.getElementById('selectAllCheckbox').checked = false;
+        updateBatchActionsBar();
+    }
+
+    // ==================== 批量删除 ====================
+
+    function batchDeleteVideos() {
+        if (selectedVideoIds.size === 0) return;
+
+        // 前置检查：确保所有选中的视频都不是已删除状态
+        var hasDeleted = false;
+        selectedVideoIds.forEach(function(videoId) {
+            var checkbox = document.querySelector('.video-checkbox[value="' + videoId + '"]');
+            if (checkbox && checkbox.getAttribute('data-status') === 'deleted') {
+                hasDeleted = true;
+            }
+        });
+
+        if (hasDeleted) {
+            showCustomAlert('选中视频包含已删除状态的视频，无法执行删除视频操作！', '提示', 'warning');
+            return;
+        }
+
+        if (!confirm('确定要删除选中的 ' + selectedVideoIds.size + ' 个视频吗？这将同时删除腾讯云上的视频文件，此操作不可恢复！')) return;
+
+        var videoIds = Array.from(selectedVideoIds);
+
+        fetch('/admin/api/videos/batch-delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: JSON.stringify({ video_ids: videoIds })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                // 启动删除监控任务 (每2秒检查，超时10秒)
+                videoIds.forEach(function(videoId) {
+                    startDeleteMonitor(videoId);
+                });
+                showCustomAlert(data.message + '，已启动删除状态监控', '成功', 'success');
+                clearSelection();
+                loadVideos();
+            } else {
+                showCustomAlert('删除失败: ' + (data.error || '未知错误'), '错误', 'error');
+            }
+        })
+        .catch(function(error) {
+            console.error('[BatchDelete] 删除请求失败:', error);
+            showCustomAlert('删除请求失败: ' + error.message, '错误', 'error');
+        });
+    }
+
+    function batchDeleteRecords() {
+        if (selectedVideoIds.size === 0) return;
+
+        // 前置检查：确保所有选中的视频都是已删除状态
+        var hasNonDeleted = false;
+        selectedVideoIds.forEach(function(videoId) {
+            var checkbox = document.querySelector('.video-checkbox[value="' + videoId + '"]');
+            if (checkbox && checkbox.getAttribute('data-status') !== 'deleted') {
+                hasNonDeleted = true;
+            }
+        });
+
+        if (hasNonDeleted) {
+            showCustomAlert('选中视频包含未删除状态的视频，请先删除视频！', '提示', 'warning');
+            return;
+        }
+
+        if (!confirm('确定要删除选中的 ' + selectedVideoIds.size + ' 条记录吗？这将只删除数据库中的记录。')) return;
+
+        var videoIds = Array.from(selectedVideoIds);
+
+        fetch('/admin/api/videos/batch-delete-records', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: JSON.stringify({ video_ids: videoIds })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showCustomAlert(data.message, '成功', 'success');
+                clearSelection();
+                loadVideos();
+            } else {
+                showCustomAlert('删除失败: ' + (data.error || '未知错误'), '错误', 'error');
+            }
+        })
+        .catch(function(error) {
+            console.error('[BatchDeleteRecords] 删除请求失败:', error);
+            showCustomAlert('删除请求失败: ' + error.message, '错误', 'error');
+        });
+    }
+
+    // ==================== 重命名功能 ====================
+    function updateRenameButtonState() {
+        var renameBtn = document.getElementById('renameBtn');
+        if (!renameBtn) return;
+        
+        // 只有当选中一条视频且状态为"转码完成"时才可用
+        if (selectedVideoIds.size === 1) {
+            var videoId = Array.from(selectedVideoIds)[0];
+            var checkbox = document.querySelector('.video-checkbox[value="' + videoId + '"]');
+            if (checkbox && checkbox.getAttribute('data-status') === 'completed') {
+                renameBtn.disabled = false;
+                renameBtn.classList.remove('btn-disabled');
+                return;
+            }
+        }
+        renameBtn.disabled = true;
+        renameBtn.classList.add('btn-disabled');
+    }
+
+    function showRenameModal() {
+        if (selectedVideoIds.size !== 1) {
+            showCustomAlert('请选择一个需要重命名的视频', '提示', 'warning');
+            return;
+        }
+        
+        var videoId = Array.from(selectedVideoIds)[0];
+        var checkbox = document.querySelector('.video-checkbox[value="' + videoId + '"]');
+        if (!checkbox || checkbox.getAttribute('data-status') !== 'completed') {
+            showCustomAlert('只有"转码完成"状态的视频才能重命名', '提示', 'warning');
+            return;
+        }
+        
+        // 获取当前文件名（从视频列表中获取）
+        var row = checkbox.closest('tr') || checkbox.closest('.video-card');
+        var fileNameCell = row.querySelector('td:nth-child(2)') || row.querySelector('.card-title');
+        var originalName = fileNameCell ? fileNameCell.textContent.trim() : '';
+        
+        // 移除后缀名
+        var nameWithoutExt = originalName;
+        var lastDotIndex = originalName.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+            nameWithoutExt = originalName.substring(0, lastDotIndex);
+        }
+        
+        document.getElementById('renameVideoId').value = videoId;
+        document.getElementById('renameOriginalName').value = originalName;
+        document.getElementById('renameInput').value = nameWithoutExt;
+        document.getElementById('renameModal').classList.add('show');
+    }
+
+    function hideRenameModal() {
+        document.getElementById('renameModal').classList.remove('show');
+    }
+
+    function submitRename() {
+        var videoId = document.getElementById('renameVideoId').value;
+        var originalName = document.getElementById('renameOriginalName').value;
+        var newName = document.getElementById('renameInput').value.trim();
+        
+        if (!newName) {
+            showCustomAlert('请输入新文件名', '提示', 'warning');
+            return;
+        }
+        
+        // 获取原来的后缀名
+        var ext = '';
+        var lastDotIndex = originalName.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+            ext = originalName.substring(lastDotIndex);
+        }
+        
+        var fullNewName = newName + ext;
+        
+        // 显示加载状态
+        var submitBtn = document.querySelector('#renameModal .btn-primary');
+        var originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> 处理中...';
+        
+        fetch('/admin/api/videos/' + videoId + '/rename', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: JSON.stringify({
+                new_name: fullNewName
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            
+            if (data.success) {
+                showCustomAlert('重命名成功', '成功', 'success');
+                hideRenameModal();
+                clearSelection();
+                loadVideos();
+            } else {
+                showCustomAlert('重命名失败: ' + (data.error || '未知错误'), '错误', 'error');
+            }
+        })
+        .catch(function(error) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            console.error('[Rename] 重命名请求失败:', error);
+            showCustomAlert('重命名请求失败: ' + error.message, '错误', 'error');
+        });
+    }
+
+    // ==================== 调整分类功能 ====================
+    function showMoveFolderModal() {
+        if (selectedVideoIds.size === 0) {
+            showCustomAlert('请先选择需要移动的视频', '提示', 'warning');
+            return;
+        }
+        
+        // 加载文件夹树
+        loadFolderTreeForSelect();
+        document.getElementById('moveFolderModal').classList.add('show');
+    }
+
+    function hideMoveFolderModal() {
+        document.getElementById('moveFolderModal').classList.remove('show');
+    }
+
+    function loadFolderTreeForSelect() {
+        var container = document.getElementById('folderSelectTree');
+        container.innerHTML = '<div class="loading"><i class="ph ph-spinner ph-spin"></i> 加载中...</div>';
+        
+        fetch('/admin/api/folders/tree')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    renderFolderTreeForSelect(data.tree, container);
+                } else {
+                    container.innerHTML = '<div class="empty-folder"><i class="ph ph-warning-circle"></i> 加载失败</div>';
+                }
+            })
+            .catch(function(error) {
+                console.error('[LoadFolderTree] 加载失败:', error);
+                container.innerHTML = '<div class="empty-folder"><i class="ph ph-warning-circle"></i> 加载失败</div>';
+            });
+    }
+
+    function renderFolderTreeForSelect(folders, container, level, parentPath) {
+        level = level || 0;
+        parentPath = parentPath || '';
+        container.innerHTML = '';
+        
+        if (folders.length === 0 && level === 0) {
+            container.innerHTML = '<div class="empty-folder"><i class="ph ph-folder-open"></i> 暂无文件夹</div>';
+            return;
+        }
+        
+        folders.forEach(function(folder) {
+            var item = document.createElement('div');
+            item.className = 'folder-select-item';
+            item.style.paddingLeft = (level * 20) + 'px';
+            
+            var currentPath = parentPath ? parentPath + ' / ' + folder.name : folder.name;
+            
+            item.innerHTML = '<i class="ph ph-folder"></i><span>' + escapeHtml(folder.name) + '</span>';
+            item.onclick = function() {
+                // 移除其他选中状态
+                document.querySelectorAll('.folder-select-item').forEach(function(el) {
+                    el.style.background = '';
+                    el.classList.remove('selected');
+                });
+                // 添加选中状态
+                item.style.background = '#e3f2fd';
+                item.classList.add('selected');
+                // 保存选中的文件夹ID
+                container.setAttribute('data-selected-folder-id', folder.id);
+                container.setAttribute('data-selected-folder-name', folder.name);
+            };
+            
+            container.appendChild(item);
+            
+            // 递归渲染子文件夹
+            if (folder.children && folder.children.length > 0) {
+                renderFolderTreeForSelect(folder.children, container, level + 1, currentPath);
+            }
+        });
+    }
+
+    function submitMoveFolder() {
+        var container = document.getElementById('folderSelectTree');
+        var targetFolderId = container.getAttribute('data-selected-folder-id');
+        
+        if (!targetFolderId) {
+            showCustomAlert('请选择目标文件夹', '提示', 'warning');
+            return;
+        }
+        
+        var videoIds = Array.from(selectedVideoIds);
+        var targetFolderName = container.getAttribute('data-selected-folder-name') || '所选文件夹';
+        
+        // 显示加载状态
+        var submitBtn = document.querySelector('#moveFolderModal .btn-primary');
+        var originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> 移动中...';
+        
+        fetch('/admin/api/videos/move-to-folder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: JSON.stringify({
+                video_ids: videoIds,
+                folder_id: targetFolderId
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            
+            if (data.success) {
+                showCustomAlert('已将 ' + videoIds.length + ' 个视频移动到 "' + targetFolderName + '"', '成功', 'success');
+                hideMoveFolderModal();
+                clearSelection();
+                loadVideos();
+            } else {
+                showCustomAlert('移动失败: ' + (data.error || '未知错误'), '错误', 'error');
+            }
+        })
+        .catch(function(error) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            console.error('[MoveFolder] 移动请求失败:', error);
+            showCustomAlert('移动请求失败: ' + error.message, '错误', 'error');
+        });
+    }
+
+    // ==================== 批量上传 ====================
+
+    function showBatchUploadModal() {
+        document.getElementById('batchUploadModal').classList.add('show');
+        document.getElementById('uploadFolderName').textContent = currentFolderName ? ' (目标: ' + currentFolderName + ')' : ' (目标: 根目录)';
+    }
+
+    function hideBatchUploadModal() {
+        document.getElementById('batchUploadModal').classList.remove('show');
+    }
+
+    function setupDragDrop() {
+        var uploadArea = document.getElementById('uploadArea');
+
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', function() {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+
+            var files = Array.from(e.dataTransfer.files).filter(function(f) {
+                return f.type.startsWith('video/');
+            });
+
+            if (files.length > 0) {
+                handleFileSelect({ target: { files: files } });
+            }
+        });
+
+        document.getElementById('batchFileInput').addEventListener('change', handleFileSelect);
+    }
+
+    function handleFileSelect(event) {
+        var files = Array.from(event.target.files);
+        selectedFiles = files.map(function(file) {
+            return {
+                file: file,
+                progress: 0,
+                status: 'waiting'
+            };
+        });
+
+        var queueList = document.getElementById('queueList');
+        queueList.innerHTML = '';
+
+        selectedFiles.forEach(function(item, index) {
+            var queueItem = document.createElement('div');
+            queueItem.className = 'queue-item';
+            queueItem.id = 'queue-item-' + index;
+            queueItem.setAttribute('data-index', index);
+            queueItem.innerHTML =
+                '<div class="queue-item-info">' +
+                    '<span class="queue-item-name">' + escapeHtml(item.file.name) + '</span>' +
+                    '<span class="queue-item-size">' + formatFileSize(item.file.size) + '</span>' +
+                '</div>' +
+                '<div class="queue-item-status status-waiting" id="queue-status-' + index + '">等待中</div>' +
+                '<div class="queue-item-progress" id="queue-progress-container-' + index + '" style="display:none;">' +
+                    '<div class="progress-bar"><div class="progress-fill" id="queue-progress-' + index + '" style="width:0%"></div></div>' +
+                '</div>';
+            queueList.appendChild(queueItem);
+        });
+
+        document.getElementById('uploadQueue').style.display = 'block';
+        document.getElementById('startUploadBtn').style.display = 'inline-block';
+    }
+
+    function renderUploadQueue() {
+        var list = document.getElementById('queueList');
+        
+        // 如果列表已存在且子元素数量匹配，只更新状态，不重新渲染
+        if (list.children.length === selectedFiles.length) {
+            selectedFiles.forEach(function(item, index) {
+                updateQueueItemStatus(index);
+            });
+            return;
+        }
+        
+        // 首次渲染或数量变化时，重新创建 HTML
+        var html = '';
+        selectedFiles.forEach(function(item, index) {
+            var statusText = '等待中';
+            var statusClass = 'status-waiting';
+
+            if (item.status === 'uploading') {
+                statusText = '上传中 ' + item.progress + '%';
+                statusClass = 'status-uploading';
+            } else if (item.status === 'success') {
+                statusText = '上传成功';
+                statusClass = 'status-success';
+            } else if (item.status === 'error') {
+                statusText = '上传失败';
+                statusClass = 'status-failed';
+            }
+
+            html += '<div class="queue-item" data-index="' + index + '" id="queue-item-' + index + '">';
+            html += '<div class="queue-item-info">';
+            html += '<span class="queue-item-name">' + escapeHtml(item.file.name) + '</span>';
+            html += '<span class="queue-item-size">' + formatFileSize(item.file.size) + '</span>';
+            html += '</div>';
+            html += '<div class="queue-item-status ' + statusClass + '" id="queue-status-' + index + '">' + statusText + '</div>';
+            html += '<div class="queue-item-progress" id="queue-progress-container-' + index + '" style="' + (item.status === 'uploading' ? '' : 'display:none;') + '">';
+            html += '<div class="progress-bar"><div class="progress-fill" id="queue-progress-' + index + '" style="width:' + item.progress + '%"></div></div>';
+            html += '</div>';
+            html += '</div>';
+        });
+
+        list.innerHTML = html;
+    }
+    
+    // 只更新单个队列项的状态，不重新渲染整个列表
+    function updateQueueItemStatus(index) {
+        var item = selectedFiles[index];
+        if (!item) return;
+        
+        var statusEl = document.getElementById('queue-status-' + index);
+        var progressContainerEl = document.getElementById('queue-progress-container-' + index);
+        var progressEl = document.getElementById('queue-progress-' + index);
+        
+        if (!statusEl) return;
+        
+        var statusText = '等待中';
+        var statusClass = 'status-waiting';
+
+        if (item.status === 'uploading') {
+            statusText = '上传中 ' + item.progress + '%';
+            statusClass = 'status-uploading';
+        } else if (item.status === 'success') {
+            statusText = '上传成功';
+            statusClass = 'status-success';
+        } else if (item.status === 'error') {
+            statusText = '上传失败: ' + (item.error || '未知错误');
+            statusClass = 'status-failed';
+        }
+
+        statusEl.textContent = statusText;
+        statusEl.className = 'queue-item-status ' + statusClass;
+        
+        if (progressContainerEl) {
+            progressContainerEl.style.display = item.status === 'uploading' ? 'block' : 'none';
+        }
+        if (progressEl && item.status === 'uploading') {
+            progressEl.style.width = item.progress + '%';
+        }
+    }
+
+    // 使用表单上传（服务器端上传）
+    function startBatchUpload() {
+        console.log('[BatchUpload] 开始批量上传，文件数:', selectedFiles.length);
+        if (selectedFiles.length === 0) {
+            console.log('[BatchUpload] 没有文件，返回');
+            return;
+        }
+
+        if (!currentFolderId) {
+            showCustomAlert('请先选择文件夹', '提示', 'warning');
+            return;
+        }
+
+        document.getElementById('startUploadBtn').disabled = true;
+        document.getElementById('startUploadBtn').innerHTML = '<i class="ph ph-spinner ph-spin"></i> 上传中...';
+
+        // 依次上传每个文件
+        uploadFilesSequentially(0);
+    }
+
+    // 依次上传文件
+    function uploadFilesSequentially(index, successCount, errorCount) {
+        successCount = successCount || 0;
+        errorCount = errorCount || 0;
+        
+        if (index >= selectedFiles.length) {
+            // 所有文件上传完成
+            console.log('[BatchUpload] 所有文件处理完成，成功:', successCount, '失败:', errorCount);
+            
+            // 根据结果显示不同的消息
+            if (errorCount === 0) {
+                // 全部成功
+                showCustomAlert('批量上传完成！共上传 ' + successCount + ' 个文件', '成功', 'success');
+            } else if (successCount === 0) {
+                // 全部失败
+                showCustomAlert('上传失败！共 ' + errorCount + ' 个文件上传失败，请检查网络或刷新页面重试', '错误', 'error');
+            } else {
+                // 部分成功
+                showCustomAlert('批量上传完成！成功: ' + successCount + ' 个，失败: ' + errorCount + ' 个', '警告', 'warning');
+            }
+            
+            hideBatchUploadModal();
+            loadVideos(1);
+            document.getElementById('startUploadBtn').disabled = false;
+            document.getElementById('startUploadBtn').innerHTML = '<i class="ph ph-play"></i> 开始上传';
+            return;
+        }
+
+        var item = selectedFiles[index];
+        console.log('[BatchUpload] 上传第' + (index + 1) + '个文件:', item.file.name);
+
+        item.status = 'uploading';
+        item.progress = 0;
+        updateQueueItemStatus(index);
+
+        // 使用表单上传
+        uploadFileViaForm(item, index, function(success) {
+            if (success) {
+                item.status = 'success';
+                item.progress = 100;
+                successCount++;
+            } else {
+                item.status = 'error';
+                errorCount++;
+            }
+            updateQueueItemStatus(index);
+
+            // 继续上传下一个
+            uploadFilesSequentially(index + 1, successCount, errorCount);
+        });
+    }
+
+    // 表单上传单个文件
+    function uploadFileViaForm(item, index, callback) {
+        var formData = new FormData();
+        formData.append('video', item.file);
+        formData.append('folder_id', currentFolderId);
+        formData.append('file_name', item.file.name);
+
+        // 模拟进度 - 使用局部更新，不重新渲染整个列表
+        var progressInterval = setInterval(function() {
+            if (item.progress < 90) {
+                item.progress += 10;
+                updateQueueItemStatus(index);
+            }
+        }, 500);
+
+        fetch('/admin/api/batch-upload-direct', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': window.getCsrfToken()
+            },
+            body: formData
+        })
+        .then(function(r) {
+            clearInterval(progressInterval);
+            if (r.status === 413) {
+                throw new Error('文件过大');
+            }
+            return r.json();
+        })
+        .then(function(data) {
+            console.log('[BatchUpload] 上传响应:', data);
+            if (data.success) {
+                item.progress = 100;
+                item.localId = data.video_id;
+                item.fileId = data.file_id;
+                updateQueueItemStatus(index);
+
+                // 启动转码监控
+                if (data.video_id) {
+                    startUploadTranscodeMonitor(data.video_id);
+                }
+
+                callback(true);
+            } else {
+                item.error = data.error || '上传失败';
+                updateQueueItemStatus(index);
+                callback(false);
+            }
+        })
+        .catch(function(error) {
+            clearInterval(progressInterval);
+            console.error('[BatchUpload] 上传失败:', error);
+            item.error = error.message || '上传失败';
+            updateQueueItemStatus(index);
+            callback(false);
+        });
+    }
+
+    // ==================== 视频详情 ====================
+
+    function showVideoDetail(videoId) {
+        currentVideoId = videoId;
+        document.getElementById('videoDetailModal').classList.add('show');
+
+        fetch('/admin/api/videos/' + videoId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    renderVideoDetail(data.video);
+                } else {
+                    document.getElementById('videoDetailBody').innerHTML =
+                        '<div class="detail-error"><i class="ph ph-warning-circle"></i> 加载失败: ' + (data.error || '未知错误') + '</div>';
+                }
+            })
+            .catch(function(error) {
+                document.getElementById('videoDetailBody').innerHTML =
+                    '<div class="detail-error"><i class="ph ph-warning-circle"></i> 加载出错: ' + error + '</div>';
+            });
+    }
+
+    function renderVideoDetail(video) {
+        var processStatus = processStatusMap[video.process_status] || { text: video.process_status, class: '', icon: 'ph-question' };
+
+        var html = '<div class="detail-content">';
+
+        // 封面预览
+        html += '<div class="detail-row cover-row">';
+        html += '<label>视频封面</label>';
+        if (video.cover_url || video.local_cover_path) {
+            var coverSrc = video.local_cover_path ? '/uploads/covers/' + video.local_cover_path : video.cover_url;
+            html += '<div class="video-cover-preview">';
+            html += '<img src="' + coverSrc + '" alt="视频封面" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">';
+            html += '<div class="cover-placeholder" style="display:none;"><i class="ph ph-image"></i> 封面加载失败</div>';
+            if (video.cover_url) {
+                html += '<div class="cover-actions"><a href="' + video.cover_url + '" target="_blank" class="btn btn-sm btn-secondary"><i class="ph ph-arrow-square-out"></i> 查看原图</a></div>';
+            }
+            html += '</div>';
+        } else {
+            html += '<div class="video-cover-preview no-cover"><i class="ph ph-image"></i> 暂无封面</div>';
+        }
+        html += '</div>';
+
+        html += '<div class="detail-row">';
+        html += '<label>文件名</label>';
+        html += '<div>' + escapeHtml(video.file_name || '-') + '</div>';
+        html += '</div>';
+
+        html += '<div class="detail-row">';
+        html += '<label>文件大小</label>';
+        html += '<div>' + (video.size ? formatFileSize(video.size) : '-') + '</div>';
+        html += '</div>';
+
+        html += '<div class="detail-row">';
+        html += '<label>视频时长</label>';
+        html += '<div>' + (video.duration ? formatDuration(video.duration) : '-') + '</div>';
+        html += '</div>';
+
+        html += '<div class="detail-row">';
+        html += '<label>分辨率</label>';
+        html += '<div>' + (video.width && video.height ? video.width + 'x' + video.height : '-') + '</div>';
+        html += '</div>';
+
+        html += '<div class="detail-row">';
+        html += '<label>码率</label>';
+        html += '<div>' + (video.bitrate ? formatBitrate(video.bitrate) : '-') + '</div>';
+        html += '</div>';
+
+
+
+        html += '<div class="detail-row">';
+        html += '<label>腾讯云ID</label>';
+        html += '<div><code>' + (video.file_id || '-') + '</code></div>';
+        html += '</div>';
+
+        html += '<div class="detail-row">';
+        html += '<label>处理状态</label>';
+        html += '<div><span class="status-badge ' + processStatus.class + '"><i class="ph ' + processStatus.icon + '"></i> ' + processStatus.text + '</span></div>';
+        html += '</div>';
+
+        html += '<div class="detail-row">';
+        html += '<label>创建时间</label>';
+        html += '<div>' + (video.created_at || '-') + '</div>';
+        html += '</div>';
+
+        if (video.transcode_info) {
+            html += '<div class="detail-row">';
+            html += '<label>转码信息</label>';
+            html += '<div>' + escapeHtml(JSON.stringify(video.transcode_info)) + '</div>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+
+        document.getElementById('videoDetailBody').innerHTML = html;
+    }
+
+    function hideVideoDetailModal() {
+        document.getElementById('videoDetailModal').classList.remove('show');
+        currentVideoId = null;
+    }
+
+    function deleteCurrentVideo() {
+        if (!currentVideoId) return;
+
+        if (!confirm('确定要删除此视频吗？此操作不可恢复！')) return;
+
+        fetch('/admin/api/videos/' + currentVideoId, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-Token': window.getCsrfToken()
+            }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                // 启动删除监控
+                startDeleteMonitor(currentVideoId);
+                showCustomAlert('删除成功，正在同步状态...', '成功', 'success');
+                hideVideoDetailModal();
+                loadVideos();
+            } else {
+                showCustomAlert('删除失败: ' + (data.error || '未知错误'), '错误', 'error');
+            }
+        })
+        .catch(function(error) {
+            console.error('[Delete] 删除请求失败:', error);
+            showCustomAlert('删除请求失败: ' + error.message, '错误', 'error');
+        });
+    }
+
+    // ==================== 同步状态 ====================
+
+    function syncAllStatus() {
+        if (!confirm('确定要同步所有视频的状态吗？这可能需要一些时间。')) return;
+
+        fetch('/admin/api/videos/sync-status', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': window.getCsrfToken()
+            }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showCustomAlert(data.message, '成功', 'success');
+                loadVideos();
+            } else {
+                showCustomAlert('同步失败: ' + (data.error || '未知错误'), '错误', 'error');
+            }
+        })
+        .catch(function(error) {
+            console.error('[Sync] 同步请求失败:', error);
+            showCustomAlert('同步请求失败: ' + error.message, '错误', 'error');
+        });
+    }
+
+    // ==================== 分页 ====================
+
+    function changePageSize() {
+        var select = document.getElementById('pageSizeSelect');
+        pageSize = select.value === 'all' ? 'all' : parseInt(select.value);
+        currentPage = 1;
+        loadVideos();
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        loadVideos(page);
+        // 滚动到顶部
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderPagination(data) {
+        var pagination = document.getElementById('pagination');
+
+        // 显示总条数信息
+        var totalInfo = '<span class="page-info">共 ' + data.total + ' 条</span>';
+        
+        if (pageSize === 'all' || data.pages <= 1) {
+            // 只有一页或全部显示时，只显示总条数
+            pagination.innerHTML = totalInfo;
+            return;
+        }
+
+        var html = totalInfo;
+        var current = data.current_page;
+        var total = data.pages;
+
+        // 上一页
+        if (current > 1) {
+            html += '<a href="javascript:void(0)" class="page-item" onclick="goToPage(' + (current - 1) + ')"><i class="ph ph-caret-left"></i></a>';
+        }
+
+        // 页码
+        var start = Math.max(1, current - 2);
+        var end = Math.min(total, current + 2);
+
+        if (start > 1) {
+            html += '<a href="javascript:void(0)" class="page-item" onclick="goToPage(1)">1</a>';
+            if (start > 2) html += '<span class="page-item disabled">...</span>';
+        }
+
+        for (var i = start; i <= end; i++) {
+            if (i === current) {
+                html += '<span class="page-item active">' + i + '</span>';
+            } else {
+                html += '<a href="javascript:void(0)" class="page-item" onclick="goToPage(' + i + ')">' + i + '</a>';
+            }
+        }
+
+        if (end < total) {
+            if (end < total - 1) html += '<span class="page-item disabled">...</span>';
+            html += '<a href="javascript:void(0)" class="page-item" onclick="goToPage(' + total + ')">' + total + '</a>';
+        }
+
+        // 下一页
+        if (current < total) {
+            html += '<a href="javascript:void(0)" class="page-item" onclick="goToPage(' + (current + 1) + ')"><i class="ph ph-caret-right"></i></a>';
+        }
+
+        pagination.innerHTML = html;
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes || bytes === 0) return '-';
+        var k = 1024;
+        var sizes = ['B', 'KB', 'MB', 'GB'];
+        var i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function formatBitrate(bps) {
+        if (!bps || bps === 0) return '-';
+        if (bps >= 1000000) {
+            return (bps / 1000000).toFixed(2) + ' Mbps';
+        } else if (bps >= 1000) {
+            return (bps / 1000).toFixed(2) + ' Kbps';
+        }
+        return bps + ' bps';
+    }
+
+    function formatDuration(seconds) {
+        if (!seconds || seconds === 0) return '-';
+        var hrs = Math.floor(seconds / 3600);
+        var mins = Math.floor((seconds % 3600) / 60);
+        var secs = Math.floor(seconds % 60);
+        if (hrs > 0) {
+            return hrs + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        }
+        return mins + ':' + String(secs).padStart(2, '0');
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function escapeJs(text) {
+        return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+    }
+
+    // 页面卸载时清除所有任务监控
+    window.addEventListener('beforeunload', function() {
+        stopAllTaskMonitors();
+    });
+
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.classList.remove('show');
+        }
+    }
+</script>
+
+<style>
+    /* ==================== 响应式显示控制 ==================== */
+    .desktop-only {
+        display: block;
+    }
+    .mobile-only {
+        display: none !important;
+    }
+
+    @media (max-width: 768px) {
+        .desktop-only {
+            display: none !important;
+        }
+        .mobile-only {
+            display: block !important;
+        }
+        /* 移动端卡片使用flex布局 */
+        .video-card-container.mobile-only {
+            display: flex !important;
+            flex-direction: column;
+            gap: 12px;
+        }
+    }
+
+    /* 导航栏菜单保持flex布局 */
+    .navbar-menu.desktop-only {
+        display: flex !important;
+    }
+    /* ==================== 移动端侧边栏 ==================== */
+    .mobile-menu-toggle {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: white;
+        cursor: pointer;
+        padding: 8px;
+        margin-right: 10px;
+    }
+
+    @media (max-width: 768px) {
+        .mobile-menu-toggle {
+            display: block;
+        }
+    }
+
+    /* PC端隐藏移动端侧边栏 */
+    @media (min-width: 769px) {
+        .mobile-sidebar,
+        .mobile-sidebar-overlay {
+            display: none !important;
+        }
+    }
+
+    .mobile-sidebar-overlay {
+        display: none !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 998;
+    }
+    
+    /* 移动端显示遮罩 */
+    @media (max-width: 768px) {
+        .mobile-sidebar-overlay {
+            display: none !important; /* 默认也不显示，点击菜单后才显示 */
+        }
+        .mobile-sidebar-overlay.show {
+            display: block !important;
+        }
+    }
+    
+    .mobile-sidebar-overlay.show {
+        display: block;
+    }
+    
+    .mobile-sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: -280px;
+        width: 280px;
+        height: 100vh;
+        background: #fff;
+        z-index: 999;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+        overflow-y: auto;
+    }
+    
+    /* 移动端显示侧边栏 */
+    @media (max-width: 768px) {
+        .mobile-sidebar {
+            display: block;
+        }
+    }
+    
+    .mobile-sidebar.show {
+        left: 0;
+    }
+    
+    .mobile-sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        background: #007bff;
+        color: white;
+    }
+    
+    .sidebar-title {
+        font-size: 18px;
+        font-weight: 600;
+    }
+    
+    .sidebar-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+    }
+    
+    .mobile-sidebar-menu {
+        padding: 10px 0;
+    }
+    
+    .mobile-nav-link {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        color: #333;
+        text-decoration: none;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 15px;
+    }
+    
+    .mobile-nav-link i {
+        font-size: 20px;
+        color: #666;
+    }
+    
+    .mobile-nav-link.active {
+        background: #e3f2fd;
+        color: #007bff;
+    }
+    
+    .mobile-nav-link.active i {
+        color: #007bff;
+    }
+    
+    .mobile-logout-btn {
+        width: 100%;
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        color: #dc3545;
+    }
+    
+    .mobile-logout-btn i {
+        color: #dc3545;
+    }
+    
+    /* ==================== 导航栏优化 ==================== */
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+    }
+    
+    .navbar-brand a {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .navbar-menu .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    @media (max-width: 992px) {
+        .navbar-menu .nav-link {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+    }
+    
+    /* ==================== 页面头部优化 ==================== */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .page-header h1 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 24px;
+        margin: 0;
+    }
+    
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .page-header h1 {
+            font-size: 20px;
+        }
+        
+        .header-actions {
+            width: 100%;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .header-actions .btn {
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .header-actions .btn-text {
+            display: none;
+        }
+    }
+    
+    /* ==================== 移动端文件夹选择器 ==================== */
+    .mobile-folder-selector {
+        display: none;
+        margin-bottom: 15px;
+        position: relative;
+        z-index: 10;
+    }
+    
+    @media (max-width: 768px) {
+        .mobile-folder-selector {
+            display: block;
+        }
+    }
+    
+    .folder-select-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    
+    .folder-select-bar span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+    }
+    
+    .mobile-folder-panel {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin-top: 5px;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .mobile-folder-panel.show {
+        display: block;
+    }
+    
+    .mobile-folder-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        position: sticky;
+        top: 0;
+        background: white;
+    }
+    
+    .mobile-folder-list {
+        padding: 5px 0;
+    }
+    
+    .mobile-folder-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 15px;
+        cursor: pointer;
+        border-bottom: 1px solid #f5f5f5;
+    }
+    
+    .mobile-folder-item.active {
+        background: #e3f2fd;
+        color: #007bff;
+    }
+    
+    .mobile-folder-item i {
+        color: #ffc107;
+    }
+    
+    /* ==================== 布局优化 ==================== */
+    .video-management-layout {
+        display: flex;
+        gap: 20px;
+        min-height: 600px;
+    }
+
+    .folder-sidebar {
+        width: 260px;
+        min-width: 260px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        flex-shrink: 0;
+    }
+
+    .video-content {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .folder-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .folder-header h3 {
+        margin: 0;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .folder-tree {
+        font-size: 14px;
+    }
+
+    .folder-item {
+        margin: 2px 0;
+    }
+
+    .folder-item-content {
+        display: flex;
+        align-items: center;
+        padding: 8px 5px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .folder-item-content:hover {
+        background: #e9ecef;
+    }
+
+    .folder-item.active > .folder-item-content {
+        background: #007bff;
+        color: white;
+    }
+
+    .folder-expand-icon {
+        width: 20px;
+        text-align: center;
+        margin-right: 4px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .folder-icon {
+        margin-right: 6px;
+        color: #ffc107;
+    }
+    
+    .folder-item.active .folder-icon {
+        color: white;
+    }
+
+    .folder-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .folder-actions {
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .folder-item-content:hover .folder-actions {
+        opacity: 1;
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px 6px;
+        font-size: 14px;
+        opacity: 0.6;
+        color: #666;
+    }
+
+    .btn-icon:hover {
+        opacity: 1;
+        color: #dc3545;
+    }
+
+    .folder-children {
+        margin-left: 10px;
+    }
+    
+    @media (max-width: 768px) {
+        .video-management-layout {
+            flex-direction: column;
+        }
+    }
+
+    /* ==================== 面包屑优化 ==================== */
+    .breadcrumb {
+        padding: 10px 15px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        font-size: 14px;
+    }
+
+    .breadcrumb-item {
+        color: #495057;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* ==================== 筛选栏优化 ==================== */
+    .filter-bar {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .filter-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-row-second {
+        justify-content: flex-end;
+    }
+
+    .filter-group, .search-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .search-group {
+        position: relative;
+        flex: 1;
+        max-width: 250px;
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 10px;
+        color: #999;
+    }
+    
+    .filter-group select, .search-group input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .search-group input {
+        width: 100%;
+        padding-left: 36px;
+    }
+    
+    .page-size-group {
+        font-size: 13px;
+    }
+    
+    .page-size-group select {
+        padding: 6px 10px;
+    }
+    
+    @media (max-width: 768px) {
+        .filter-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .search-group {
+            max-width: none;
+        }
+        
+        .filter-group, .search-group {
+            width: 100%;
+        }
+        
+        .filter-group select {
+            flex: 1;
+        }
+    }
+
+    /* ==================== 批量操作栏优化 ==================== */
+    .batch-actions-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .batch-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .selected-count {
+        font-size: 14px;
+    }
+
+    .batch-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    @media (max-width: 768px) {
+        .batch-actions-bar {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .batch-buttons {
+            width: 100%;
+        }
+        
+        .batch-buttons .btn {
+            flex: 1;
+            justify-content: center;
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+        
+        .btn-label {
+            display: none;
+        }
+    }
+
+    /* ==================== 表格样式优化 ==================== */
+    .video-table-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow-x: auto;
+    }
+
+    .video-list-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .video-list-table th,
+    .video-list-table td {
+        padding: 12px 10px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .video-list-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .video-list-table td {
+        font-size: 13px;
+    }
+
+    .video-list-table code {
+        background: #f4f4f4;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .status-normal { background: #d4edda; color: #155724; }
+    .status-uploading { background: #fff3cd; color: #856404; }
+    .status-uploaded { background: #d1ecf1; color: #0c5460; }
+    .status-processing { background: #cce5ff; color: #004085; }
+    .status-pending { background: #e2e3e5; color: #383d41; }
+    .status-success { background: #d4edda; color: #155724; }
+    .status-failed { background: #f8d7da; color: #721c24; }
+    .status-deleted { background: #f8d7da; color: #721c24; }
+    .status-deleting { background: #fff3cd; color: #856404; }
+    .status-completed { background: #d4edda; color: #155724; }
+
+    /* 已删除视频行样式 */
+    .deleted-row {
+        background-color: #f8f9fa !important;
+        opacity: 0.7;
+    }
+
+    .deleted-row td {
+        color: #6c757d;
+    }
+    
+    /* 已删除视频的文件名带删除线 */
+    .deleted-row td:nth-child(2) {
+        text-decoration: line-through;
+    }
+
+    /* ==================== 移动端卡片样式 ==================== */
+    .video-card-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .video-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .video-card.deleted {
+        opacity: 0.7;
+        background: #f8f9fa;
+    }
+    
+    .video-card.deleted .card-title {
+        text-decoration: line-through;
+    }
+    
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .card-checkbox {
+        flex-shrink: 0;
+    }
+    
+    .card-checkbox input {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .card-title {
+        flex: 1;
+        font-weight: 500;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .card-body {
+        padding: 12px 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .card-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        color: #666;
+    }
+    
+    .card-meta span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        background: #f8f9fa;
+        border-top: 1px solid #f0f0f0;
+    }
+    
+    .card-time {
+        font-size: 12px;
+        color: #999;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .loading-card, .empty-card, .error-card {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+    
+    .error-card {
+        color: #dc3545;
+    }
+
+    /* ==================== 复选框样式 ==================== */
+    .checkbox-lg {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    /* 批量操作按钮禁用样式 */
+    .batch-buttons button:disabled,
+    .btn-disabled {
+        opacity: 0.5 !important;
+        cursor: not-allowed !important;
+        pointer-events: none;
+    }
+
+    .loading-cell, .empty-cell, .error-cell {
+        text-align: center;
+        padding: 40px !important;
+        color: #6c757d;
+    }
+
+    .error-cell {
+        color: #dc3545;
+    }
+
+    .empty-folder {
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+        font-size: 12px;
+    }
+
+    /* ==================== 分页优化 ==================== */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .page-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #007bff;
+        font-size: 14px;
+        cursor: pointer;
+        background: white;
+    }
+
+    .page-item.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .page-item:hover:not(.active):not(.disabled) {
+        background: #f8f9fa;
+    }
+    
+    .page-item.disabled {
+        cursor: default;
+        color: #999;
+    }
+    
+    .page-info {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 12px;
+        height: 36px;
+        color: #666;
+        font-size: 14px;
+        margin-right: 10px;
+    }
+
+    /* ==================== 模态框优化 ==================== */
+    .modal-content {
+        max-width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .modal-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    @media (max-width: 768px) {
+        .modal-content {
+            max-width: 95%;
+            margin: 10px;
+        }
+        
+        .modal-header {
+            padding: 15px;
+        }
+        
+        .modal-body {
+            padding: 15px;
+        }
+        
+        .modal-footer {
+            padding: 15px;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .modal-footer .btn {
+            width: 100%;
+        }
+        
+        .modal-title-wrap h3 {
+            font-size: 16px;
+        }
+        
+        .current-folder-name {
+            font-size: 12px;
+        }
+    }
+
+    /* ==================== 批量上传样式 ==================== */
+    .upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .upload-area:hover, .upload-area.drag-over {
+        border-color: #007bff;
+        background: #f8f9fa;
+    }
+
+    .upload-icon {
+        font-size: 48px;
+        color: #007bff;
+        margin-bottom: 10px;
+    }
+    
+    .upload-title {
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+    
+    .upload-subtitle {
+        color: #666;
+        margin-bottom: 10px;
+    }
+
+    .upload-placeholder .text-muted {
+        color: #999;
+        font-size: 12px;
+    }
+
+    .current-folder-name {
+        font-size: 14px;
+        color: #6c757d;
+        font-weight: normal;
+    }
+
+    .upload-queue {
+        margin-top: 20px;
+    }
+
+    .queue-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .queue-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    @media (max-width: 768px) {
+        .queue-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .queue-item-info {
+            width: 100%;
+        }
+        
+        .queue-item-progress {
+            width: 100% !important;
+        }
+        
+        .queue-item-status {
+            width: 100%;
+            text-align: left;
+        }
+    }
+
+    .queue-item-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .queue-item-name {
+        display: block;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .queue-item-size {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .queue-item-status {
+        min-width: 80px;
+        text-align: center;
+        font-size: 13px;
+    }
+
+    .queue-item-progress {
+        width: 150px;
+    }
+    
+    .progress-bar {
+        height: 6px;
+        background: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: #007bff;
+        transition: width 0.3s;
+    }
+
+    /* ==================== 详情样式 ==================== */
+    .detail-content {
+        padding: 10px;
+    }
+
+    .detail-row {
+        display: flex;
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+        align-items: flex-start;
+    }
+
+    .detail-row label {
+        width: 100px;
+        font-weight: 500;
+        color: #495057;
+        flex-shrink: 0;
+    }
+    
+    .detail-row > div {
+        flex: 1;
+        word-break: break-all;
+    }
+    
+    /* 视频封面预览 */
+    .cover-row {
+        align-items: flex-start !important;
+    }
+    
+    .cover-row label {
+        margin-top: 10px;
+    }
+    
+    .video-cover-preview {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .video-cover-preview img {
+        max-width: 300px;
+        max-height: 200px;
+        width: auto;
+        height: auto;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        object-fit: cover;
+    }
+    
+    .video-cover-preview.no-cover {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 200px;
+        height: 120px;
+        background: #f8f9fa;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        color: #adb5bd;
+        font-size: 14px;
+        gap: 8px;
+    }
+    
+    .video-cover-preview.no-cover i {
+        font-size: 24px;
+    }
+    
+    .cover-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 200px;
+        height: 120px;
+        background: #f8f9fa;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        color: #adb5bd;
+        font-size: 14px;
+        gap: 8px;
+    }
+    
+    .cover-placeholder i {
+        font-size: 24px;
+    }
+    
+    .cover-actions {
+        margin-top: 5px;
+    }
+
+    .detail-loading, .detail-error {
+        padding: 40px;
+        text-align: center;
+    }
+
+    .detail-error {
+        color: #dc3545;
+    }
+    
+    @media (max-width: 768px) {
+        .detail-row {
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .detail-row label {
+            width: auto;
+            font-size: 13px;
+            color: #666;
+        }
+    }
+    
+    /* ==================== 提示弹窗样式 ==================== */
+    .alert-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+    }
+    
+    .alert-icon i.ph-check-circle {
+        color: #28a745;
+    }
+    
+    .alert-icon i.ph-x-circle {
+        color: #dc3545;
+    }
+    
+    .alert-icon i.ph-warning-circle {
+        color: #ffc107;
+    }
+    
+    .alert-icon i.ph-info {
+        color: #007bff;
+    }
+    
+    .alert-message {
+        font-size: 15px;
+        margin: 15px 0;
+        line-height: 1.5;
+    }
+    
+    /* ==================== 文件夹选择树样式 ==================== */
+    .folder-select-tree {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        background: #f8f9fa;
+    }
+    
+    .folder-select-item {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.2s;
+    }
+    
+    .folder-select-item:hover {
+        background: #e9ecef;
+    }
+    
+    .folder-select-item.selected {
+        background: #e3f2fd !important;
+        border-left: 3px solid #007bff;
+    }
+    
+    .folder-select-item i {
+        color: #ffc107;
+    }
+
+    /* ==================== 小弹窗样式 ==================== */
+    .modal-content.modal-sm {
+        max-width: 400px;
+    }
+    
+    @media (max-width: 768px) {
+        .modal-content.modal-sm {
+            max-width: 90%;
+        }
+    }
+    
+    /* ==================== 文本居中 ==================== */
+    .text-center {
+        text-align: center;
+    }
+    
+    /* ==================== 按钮样式增强 ==================== */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    .btn i {
+        font-size: 16px;
+    }
+    
+    .btn-sm i {
+        font-size: 14px;
+    }
+    
+    .btn-text {
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        padding: 4px 8px;
+    }
+    
+    .btn-text:hover {
+        color: #333;
+    }
+</style>
+{% endblock %}

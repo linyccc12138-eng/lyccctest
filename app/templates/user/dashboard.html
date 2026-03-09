@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+
+{% block title %}学习中心 - {{ site_name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar md:flex hidden">
+    <div class="navbar-brand">
+        <a href="{{ url_for('user.dashboard') }}">{{ site_name }}</a>
+    </div>
+    <div class="navbar-menu">
+        <a href="{{ url_for('user.dashboard') }}" class="nav-link active">
+            <i class="ph ph-house mr-1"></i>首页
+        </a>
+        <a href="{{ url_for('user.my_courses') }}" class="nav-link">
+            <i class="ph ph-book-bookmark mr-1"></i>我的课程
+        </a>
+        <a href="{{ url_for('user.history') }}" class="nav-link">
+            <i class="ph ph-clock-counter-clockwise mr-1"></i>播放历史
+        </a>
+        <a href="{{ url_for('course.list_courses') }}" class="nav-link">
+            <i class="ph ph-books mr-1"></i>全部课程
+        </a>
+        <a href="{{ url_for('user.change_password') }}" class="nav-link">
+            <i class="ph ph-key mr-1"></i>修改密码
+        </a>
+        <a href="{{ url_for('auth.logout') }}" class="nav-link">
+            <i class="ph ph-sign-out mr-1"></i>退出
+        </a>
+    </div>
+</nav>
+
+<!-- 移动端顶部简化导航 -->
+<nav class="md:hidden navbar">
+    <div class="navbar-brand flex items-center gap-2">
+        <span class="text-2xl">✨</span>
+        <span>{{ site_name }}</span>
+    </div>
+    <div class="flex items-center gap-3">
+        <span class="text-sm text-gray-600">{{ current_user.phone[:3] }}****{{ current_user.phone[-4:] }}</span>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- 欢迎区域 -->
+    <div class="mb-6 md:mb-8">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 mb-2">
+            <span class="animate-pulse">👋</span>
+            欢迎回来，魔法师
+        </h1>
+        <p class="text-gray-600">继续你的学习之旅吧 ✨</p>
+    </div>
+    
+    {% if last_play %}
+    <!-- 继续学习卡片 -->
+    <div class="card continue-card mb-6 md:mb-8 slide-up">
+        <div class="card-header">
+            <h3 class="flex items-center gap-2">
+                <i class="ph ph-play-circle text-xl"></i>
+                继续学习
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="flex flex-col md:flex-row gap-4 items-start">
+                <div class="flex-1">
+                    <h4 class="text-xl font-semibold mb-1">{{ last_play.course.title }}</h4>
+                    <p class="text-white/80 mb-4 flex items-center gap-2">
+                        <i class="ph ph-video"></i>
+                        {{ last_play.chapter.title }}
+                    </p>
+                    {% if last_play.progress %}
+                    <div class="mb-3">
+                        <div class="progress-bar bg-white/20">
+                            <div class="progress-fill bg-white" style="width: {{ last_play.progress }}%"></div>
+                        </div>
+                        <p class="text-sm text-white/80 mt-1">已学习 {{ "%.0f"|format(last_play.progress) }}%</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('play.play', chapter_id=last_play.chapter_id) }}" 
+                   class="btn bg-white text-magic-600 hover:bg-gray-100 flex items-center gap-2 whitespace-nowrap">
+                    <i class="ph ph-play-fill"></i>
+                    继续播放
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- 我的课程区域 -->
+    <div class="section">
+        <div class="flex items-center justify-between mb-4 md:mb-6">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="ph ph-book-bookmark text-magic-500"></i>
+                我的课程
+            </h2>
+            <a href="{{ url_for('course.list_courses') }}" class="text-magic-600 hover:text-magic-700 text-sm md:text-base flex items-center gap-1">
+                查看全部
+                <i class="ph ph-caret-right"></i>
+            </a>
+        </div>
+        
+        {% if courses %}
+        <div class="course-grid">
+            {% for course in courses %}
+            <div class="course-card fade-in" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+                <a href="{{ url_for('course.detail', course_id=course.id) }}">
+                    <div class="course-thumbnail">
+                        {% if course.thumbnail_url %}
+                        <img src="{{ course.thumbnail_url }}" alt="{{ course.title }}" loading="lazy">
+                        {% else %}
+                        <div class="thumbnail-placeholder">
+                            <span>{{ course.title[0] }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="course-info">
+                        <h3>{{ course.title }}</h3>
+                        <p class="course-desc">{{ course.description or '暂无简介' }}</p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="badge badge-success">
+                                <i class="ph ph-check-circle"></i>
+                                可学习
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>您还没有被分配任何课程</p>
+            <a href="{{ url_for('course.list_courses') }}" class="btn btn-primary mt-4 inline-flex items-center gap-2">
+                <i class="ph ph-compass"></i>
+                浏览全部课程
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block mobile_nav %}
+<!-- 移动端底部导航栏 -->
+<nav class="mobile-bottom-nav md:hidden">
+    <div class="mobile-bottom-nav-items">
+        <a href="{{ url_for('user.dashboard') }}" class="mobile-nav-item active">
+            <i class="ph ph-house text-2xl"></i>
+            <span>首页</span>
+        </a>
+        <a href="{{ url_for('user.my_courses') }}" class="mobile-nav-item">
+            <i class="ph ph-book-bookmark text-2xl"></i>
+            <span>我的课程</span>
+        </a>
+        <a href="{{ url_for('user.history') }}" class="mobile-nav-item">
+            <i class="ph ph-clock-counter-clockwise text-2xl"></i>
+            <span>播放历史</span>
+        </a>
+        <a href="{{ url_for('course.list_courses') }}" class="mobile-nav-item">
+            <i class="ph ph-books text-2xl"></i>
+            <span>全部课程</span>
+        </a>
+        <a href="{{ url_for('user.change_password') }}" class="mobile-nav-item">
+            <i class="ph ph-key text-2xl"></i>
+            <span>修改密码</span>
+        </a>
+    </div>
+</nav>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .5; }
+}
+
+.slide-up {
+    animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+    opacity: 0;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}

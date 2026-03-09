@@ -1,0 +1,1013 @@
+{% extends 'base.html' %}
+
+{% block title %}课程详情 - {{ course.title }} - {{ site_name }}{% endblock %}
+
+{% block navbar %}
+<!-- 移动端遮罩层 -->
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileSidebar()"></div>
+
+<!-- 移动端侧边栏 -->
+<aside class="mobile-sidebar" id="mobileSidebar">
+    <div class="mobile-sidebar-header">
+        <span class="mobile-sidebar-title">管理后台</span>
+        <button class="mobile-sidebar-close" onclick="closeMobileSidebar()">
+            <i class="ph ph-x"></i>
+        </button>
+    </div>
+    <nav class="mobile-sidebar-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="mobile-nav-link">
+            <i class="ph ph-squares-four"></i>
+            <span>仪表盘</span>
+        </a>
+        <a href="{{ url_for('admin.users') }}" class="mobile-nav-link">
+            <i class="ph ph-users"></i>
+            <span>用户管理</span>
+        </a>
+        <a href="{{ url_for('admin.courses') }}" class="mobile-nav-link active">
+            <i class="ph ph-books"></i>
+            <span>课程管理</span>
+        </a>
+        <a href="{{ url_for('admin.chapters', course_id=course.id) }}" class="mobile-nav-link">
+            <i class="ph ph-list-dashes"></i>
+            <span>章节管理</span>
+        </a>
+        <a href="{{ url_for('admin.videos') }}" class="mobile-nav-link">
+            <i class="ph ph-video"></i>
+            <span>视频管理</span>
+        </a>
+        <a href="{{ url_for('admin.events') }}" class="mobile-nav-link">
+            <i class="ph ph-calendar-check"></i>
+            <span>事件管理</span>
+        </a>
+        <a href="{{ url_for('admin.logs') }}" class="mobile-nav-link">
+            <i class="ph ph-scroll"></i>
+            <span>日志管理</span>
+        </a>
+        <a href="{{ url_for('admin.locked') }}" class="mobile-nav-link">
+            <i class="ph ph-lock-key"></i>
+            <span>锁定管理</span>
+        </a>
+        <a href="{{ url_for('admin.system_config') }}" class="mobile-nav-link">
+            <i class="ph ph-gear"></i>
+            <span>系统配置</span>
+        </a>
+        <form action="{{ url_for('auth.logout') }}" method="post" class="mobile-nav-link mobile-logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="mobile-logout-btn">
+                <i class="ph ph-sign-out"></i>
+                <span>退出登录</span>
+            </button>
+        </form>
+    </nav>
+</aside>
+
+<nav class="navbar navbar-admin">
+    <div class="navbar-brand">
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="openMobileSidebar()">
+            <i class="ph ph-list"></i>
+        </button>
+        <a href="{{ url_for('admin.dashboard') }}">管理后台</a>
+    </div>
+    <div class="navbar-menu">
+        <a href="{{ url_for('admin.users') }}" class="nav-link">
+            <i class="ph ph-users"></i>
+            <span>用户管理</span>
+        </a>
+        <a href="{{ url_for('admin.courses') }}" class="nav-link active">
+            <i class="ph ph-books"></i>
+            <span>课程管理</span>
+        </a>
+        <a href="{{ url_for('admin.videos') }}" class="nav-link">
+            <i class="ph ph-video"></i>
+            <span>视频管理</span>
+        </a>
+        <a href="{{ url_for('admin.events') }}" class="nav-link">
+            <i class="ph ph-calendar-check"></i>
+            <span>事件管理</span>
+        </a>
+        <a href="{{ url_for('admin.logs') }}" class="nav-link">
+            <i class="ph ph-scroll"></i>
+            <span>日志管理</span>
+        </a>
+        <a href="{{ url_for('admin.locked') }}" class="nav-link">
+            <i class="ph ph-lock-key"></i>
+            <span>锁定管理</span>
+        </a>
+        <a href="{{ url_for('admin.system_config') }}" class="nav-link">
+            <i class="ph ph-gear"></i>
+            <span>系统配置</span>
+        </a>
+        <form action="{{ url_for('auth.logout') }}" method="post" style="display: inline;" id="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link nav-logout-btn" id="logout-btn">
+                <i class="ph ph-sign-out"></i>
+                <span>退出</span>
+            </button>
+        </form>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="page-header">
+        <a href="{{ url_for('admin.courses') }}" class="back-link">
+            <i class="ph ph-arrow-left"></i>
+            <span>返回课程列表</span>
+        </a>
+        <h1>
+            <i class="ph ph-book"></i>
+            <span>{{ course.title }}</span>
+        </h1>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="info">
+            <i class="ph ph-info"></i>
+            <span>课程信息</span>
+        </button>
+        <a href="{{ url_for('admin.chapters', course_id=course.id) }}" class="tab-btn tab-link">
+            <i class="ph ph-list-dashes"></i>
+            <span>章节管理</span>
+        </a>
+    </div>
+
+    <div class="tab-content" id="info-tab">
+        <div class="course-edit-section">
+            <h3>
+                <i class="ph ph-pencil-simple"></i>
+                <span>编辑课程信息</span>
+            </h3>
+            <form method="POST" action="{{ url_for('admin.edit_course', course_id=course.id) }}" enctype="multipart/form-data">
+                <!-- CSRF Token -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="form-group">
+                    <label>
+                        <i class="ph ph-text-t"></i>
+                        <span>课程标题 *</span>
+                    </label>
+                    <input type="text" name="title" value="{{ course.title }}" required placeholder="请输入课程标题">
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <i class="ph ph-textbox"></i>
+                        <span>课程简介</span>
+                    </label>
+                    <textarea name="description" rows="3" placeholder="请输入课程简介">{{ course.description or '' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <i class="ph ph-image"></i>
+                        <span>课程缩略图</span>
+                    </label>
+                    <div class="thumbnail-wrapper">
+                        {% if course.thumbnail_url %}
+                        <div class="current-thumbnail">
+                            <img src="{{ course.thumbnail_url }}" alt="课程缩略图" loading="lazy">
+                        </div>
+                        {% else %}
+                        <div class="no-thumbnail">
+                            <i class="ph ph-image"></i>
+                            <span>暂无缩略图</span>
+                        </div>
+                        {% endif %}
+                        <div class="file-input-wrapper">
+                            <input type="file" name="thumbnail" accept="image/*" id="thumbnailInput">
+                            <label for="thumbnailInput" class="file-input-label">
+                                <i class="ph ph-upload-simple"></i>
+                                <span>选择图片</span>
+                            </label>
+                        </div>
+                        <p class="help-text">
+                            <i class="ph ph-info"></i>
+                            支持 JPG、PNG 格式，建议尺寸 16:9
+                        </p>
+                        
+                        <!-- 编辑/预览切换按钮 -->
+                        <div class="rich-text-toggle">
+                            <button type="button" class="btn btn-secondary" id="editBtn">
+                                <i class="ph ph-pencil-simple"></i>
+                                <span>编辑富文本</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary hidden" id="previewBtn">
+                                <i class="ph ph-eye"></i>
+                                <span>预览富文本</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <i class="ph ph-file-text"></i>
+                        <span>富文本详情</span>
+                    </label>
+                    <!-- 预览模式（默认显示） -->
+                    <div id="previewMode">
+                        <div class="preview-content" id="previewContent">
+                            {% if course.detail_content %}
+                                {{ course.detail_content|safe }}
+                            {% else %}
+                                <div class="empty-tip">
+                                    <i class="ph ph-file-text"></i>
+                                    <p>暂无内容，点击下方"编辑富文本"按钮添加详情</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <!-- 编辑模式（默认隐藏） -->
+                    <div id="editMode" class="hidden">
+                        <textarea name="detail_content" id="richTextEditor" rows="10" class="rich-text">{{ course.detail_content or '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ph ph-floppy-disk"></i>
+                        <span>保存修改</span>
+                    </button>
+                    <a href="{{ url_for('admin.courses') }}" class="btn btn-secondary">
+                        <i class="ph ph-x"></i>
+                        <span>取消</span>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ==================== 基础响应式设置 ==================== */
+    :root {
+        --primary-color: #007bff;
+        --primary-hover: #0056b3;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --danger-color: #dc3545;
+        --bg-color: #f8f9fa;
+        --card-bg: #ffffff;
+        --text-color: #333333;
+        --text-muted: #6c757d;
+        --border-color: #e0e0e0;
+        --shadow: 0 2px 8px rgba(0,0,0,0.1);
+        --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+        --radius: 8px;
+        --radius-sm: 4px;
+        --sidebar-width: 260px;
+    }
+
+    /* ==================== 导航栏样式 ==================== */
+    .navbar-admin {
+        background: var(--card-bg);
+        box-shadow: var(--shadow);
+        padding: 0 20px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 15px 0;
+    }
+
+    .navbar-brand a {
+        color: var(--text-color);
+        text-decoration: none;
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .mobile-menu-toggle {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--text-color);
+        cursor: pointer;
+        padding: 4px;
+    }
+
+    .navbar-menu {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        color: var(--text-muted);
+        text-decoration: none;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+    }
+
+    .nav-link i {
+        font-size: 1.1rem;
+    }
+
+    .nav-link:hover {
+        background: var(--bg-color);
+        color: var(--primary-color);
+    }
+
+    .nav-link.active {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .nav-logout-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: inherit;
+    }
+
+    /* ==================== 移动端侧边栏 ==================== */
+    .mobile-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 998;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .mobile-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .mobile-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: var(--sidebar-width);
+        height: 100vh;
+        background: var(--card-bg);
+        box-shadow: var(--shadow-lg);
+        z-index: 999;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        overflow-y: auto;
+    }
+
+    .mobile-sidebar.active {
+        transform: translateX(0);
+    }
+
+    .mobile-sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .mobile-sidebar-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .mobile-sidebar-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 4px;
+    }
+
+    .mobile-sidebar-nav {
+        padding: 12px;
+    }
+
+    .mobile-nav-link {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        color: var(--text-muted);
+        text-decoration: none;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        margin-bottom: 4px;
+    }
+
+    .mobile-nav-link i {
+        font-size: 1.25rem;
+    }
+
+    .mobile-nav-link:hover {
+        background: var(--bg-color);
+        color: var(--primary-color);
+    }
+
+    .mobile-nav-link.active {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .mobile-logout-form {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .mobile-logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 0;
+        background: none;
+        border: none;
+        color: inherit;
+        font-family: inherit;
+        font-size: inherit;
+        cursor: pointer;
+    }
+
+    /* ==================== 主内容区 ==================== */
+    .admin-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--primary-color);
+        text-decoration: none;
+        margin-bottom: 12px;
+        font-size: 0.9rem;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    .page-header h1 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.5rem;
+        margin: 0;
+        color: var(--text-color);
+    }
+
+    .page-header h1 i {
+        color: var(--primary-color);
+    }
+
+    /* ==================== 标签页 ==================== */
+    .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 18px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        border-radius: var(--radius-sm);
+        text-decoration: none;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+
+    .tab-btn i {
+        font-size: 1.1rem;
+    }
+
+    .tab-btn:hover {
+        background: var(--bg-color);
+        color: var(--text-color);
+    }
+
+    .tab-btn.active {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    /* ==================== 表单样式 ==================== */
+    .course-edit-section {
+        background: var(--card-bg);
+        padding: 24px;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+    }
+
+    .course-edit-section h3 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 0;
+        margin-bottom: 24px;
+        color: var(--text-color);
+        font-size: 1.2rem;
+    }
+
+    .course-edit-section h3 i {
+        color: var(--primary-color);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--text-color);
+        font-size: 0.9rem;
+    }
+
+    .form-group label i {
+        color: var(--text-muted);
+    }
+
+    .form-group input[type="text"],
+    .form-group textarea {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 0.95rem;
+        transition: border-color 0.2s ease;
+        box-sizing: border-box;
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .thumbnail-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .current-thumbnail,
+    .no-thumbnail {
+        width: 100%;
+        max-width: 400px;
+        aspect-ratio: 16 / 9;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        background: var(--bg-color);
+    }
+
+    .current-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .no-thumbnail {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 2px dashed var(--border-color);
+        color: var(--text-muted);
+        gap: 8px;
+    }
+
+    .no-thumbnail i {
+        font-size: 2rem;
+    }
+
+    .file-input-wrapper {
+        position: relative;
+    }
+
+    .file-input-wrapper input[type="file"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .file-input-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 18px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        color: var(--text-color);
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+
+    .file-input-label:hover {
+        background: var(--border-color);
+    }
+
+    .help-text {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    .rich-text-toggle {
+        display: flex;
+        gap: 10px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+
+    .form-actions {
+        margin-top: 32px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    /* 按钮样式 */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 20px;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: 0.95rem;
+        font-family: inherit;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+        background: var(--bg-color);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--border-color);
+    }
+
+    .rich-text {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+
+    /* 预览模式样式 */
+    .preview-content {
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        padding: 20px;
+        background: var(--card-bg);
+        min-height: 200px;
+    }
+
+    .preview-content .empty-tip {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        color: var(--text-muted);
+        padding: 40px;
+        text-align: center;
+    }
+
+    .preview-content .empty-tip i {
+        font-size: 3rem;
+        opacity: 0.5;
+    }
+
+    .preview-content .empty-tip p {
+        margin: 0;
+    }
+
+    /* TinyMCE 编辑器样式调整 */
+    .tox-tinymce {
+        border-radius: var(--radius-sm) !important;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    /* ==================== 响应式设计 ==================== */
+    @media (max-width: 768px) {
+        .navbar-menu {
+            display: none;
+        }
+
+        .mobile-menu-toggle {
+            display: block;
+        }
+
+        .admin-container {
+            padding: 16px;
+        }
+
+        .page-header h1 {
+            font-size: 1.25rem;
+        }
+
+        .tabs {
+            gap: 6px;
+        }
+
+        .tab-btn {
+            padding: 8px 14px;
+            font-size: 0.85rem;
+        }
+
+        .course-edit-section {
+            padding: 16px;
+        }
+
+        .course-edit-section h3 {
+            font-size: 1.1rem;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+        }
+
+        .current-thumbnail,
+        .no-thumbnail {
+            max-width: 100%;
+        }
+
+        .rich-text-toggle {
+            flex-direction: column;
+        }
+
+        .rich-text-toggle .btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .navbar-brand a {
+            font-size: 1.1rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.1rem;
+        }
+
+        .tab-btn span {
+            display: none;
+        }
+
+        .tab-btn i {
+            font-size: 1.25rem;
+        }
+
+        .preview-content {
+            padding: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.tiny.cloud/1/esazkmyz3gahrj2teqtvimt91wlrracqp3k2ig8zuushd1n6/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+    // ==================== 移动端侧边栏控制 ====================
+    function openMobileSidebar() {
+        document.getElementById('mobileSidebar').classList.add('active');
+        document.getElementById('mobileOverlay').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileSidebar() {
+        document.getElementById('mobileSidebar').classList.remove('active');
+        document.getElementById('mobileOverlay').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // 监听窗口大小变化，如果在桌面端关闭侧边栏
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768) {
+            closeMobileSidebar();
+        }
+    });
+
+    // 监听 ESC 键关闭侧边栏
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeMobileSidebar();
+        }
+    });
+
+    // ==================== TinyMCE 富文本编辑器 ====================
+    let editorInitialized = false;
+    
+    function initEditor() {
+        if (editorInitialized) return;
+        
+        tinymce.init({
+            selector: '#richTextEditor',
+            language: 'zh_CN',
+            height: 500,
+            plugins: [
+                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                'insertdatetime', 'media', 'table', 'help', 'wordcount'
+            ],
+            toolbar: 'undo redo | blocks | ' +
+                'bold italic forecolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | help',
+            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+            // 图片上传到服务器而不是 base64
+            images_upload_url: '/admin/api/upload-image',
+            images_upload_handler: function (blobInfo, progress) {
+                return new Promise(function (resolve, reject) {
+                    var xhr = new XMLHttpRequest();
+                    xhr.withCredentials = true;
+                    xhr.open('POST', '/admin/api/upload-image');
+
+                    // 添加 CSRF Token 到请求头
+                    xhr.setRequestHeader('X-CSRF-Token', window.getCsrfToken ? window.getCsrfToken() : '');
+
+                    xhr.upload.onprogress = function (e) {
+                        if (e.lengthComputable) {
+                            progress(e.loaded / e.total * 100);
+                        }
+                    };
+
+                    xhr.onload = function() {
+                        if (xhr.status === 403) {
+                            reject({ message: '安全验证失败，请刷新页面重试', remove: true });
+                            return;
+                        }
+                        if (xhr.status < 200 || xhr.status >= 300) {
+                            reject('HTTP Error: ' + xhr.status);
+                            return;
+                        }
+                        try {
+                            var json = JSON.parse(xhr.responseText);
+                            if (!json || json.success !== true) {
+                                reject('上传失败: ' + (json.error || '未知错误'));
+                                return;
+                            }
+                            resolve(json.location);
+                        } catch (e) {
+                            reject('响应解析失败: ' + xhr.responseText.substring(0, 100));
+                        }
+                    };
+
+                    xhr.onerror = function () {
+                        reject('Image upload failed due to a XHR Transport error. Code: ' + xhr.status);
+                    };
+
+                    var formData = new FormData();
+                    formData.append('file', blobInfo.blob(), blobInfo.filename());
+                    xhr.send(formData);
+                });
+            },
+            // 自动同步内容到 textarea
+            setup: function (editor) {
+                editor.on('change', function () {
+                    editor.save();
+                });
+            }
+        });
+        
+        editorInitialized = true;
+    }
+    
+    // 切换到编辑模式
+    document.getElementById('editBtn').addEventListener('click', function() {
+        // 隐藏预览区域和编辑按钮
+        document.getElementById('previewMode').classList.add('hidden');
+        document.getElementById('editBtn').classList.add('hidden');
+        
+        // 显示编辑区域和预览按钮
+        document.getElementById('editMode').classList.remove('hidden');
+        document.getElementById('previewBtn').classList.remove('hidden');
+        
+        // 初始化编辑器
+        initEditor();
+    });
+    
+    // 切换到预览模式
+    document.getElementById('previewBtn').addEventListener('click', function() {
+        // 同步编辑器内容
+        if (editorInitialized) {
+            tinymce.triggerSave();
+            var editor = tinymce.get('richTextEditor');
+            var content = editor ? editor.getContent() : document.getElementById('richTextEditor').value;
+            
+            // 更新预览内容
+            if (content.trim()) {
+                document.getElementById('previewContent').innerHTML = content;
+            } else {
+                document.getElementById('previewContent').innerHTML = `
+                    <div class="empty-tip">
+                        <i class="ph ph-file-text"></i>
+                        <p>暂无内容，点击下方"编辑富文本"按钮添加详情</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 隐藏编辑区域和预览按钮
+        document.getElementById('editMode').classList.add('hidden');
+        document.getElementById('previewBtn').classList.add('hidden');
+        
+        // 显示预览区域和编辑按钮
+        document.getElementById('previewMode').classList.remove('hidden');
+        document.getElementById('editBtn').classList.remove('hidden');
+    });
+
+    // 表单提交前强制同步 TinyMCE 内容
+    document.querySelector('form').addEventListener('submit', function(e) {
+        // 如果编辑器已初始化，同步内容
+        if (editorInitialized) {
+            tinymce.triggerSave();
+            
+            var editor = tinymce.get('richTextEditor');
+            var textarea = document.getElementById('richTextEditor');
+            
+            if (editor && textarea) {
+                var editorContent = editor.getContent();
+                var textareaValue = textarea.value;
+                
+                // 如果不同步，手动设置
+                if (editorContent !== textareaValue) {
+                    textarea.value = editorContent;
+                    console.log('手动同步 TinyMCE 内容到 textarea');
+                }
+            }
+        }
+    });
+
+    // 文件选择显示
+    document.getElementById('thumbnailInput').addEventListener('change', function(e) {
+        var fileName = e.target.files[0]?.name;
+        if (fileName) {
+            var label = document.querySelector('.file-input-label span');
+            label.textContent = fileName;
+        }
+    });
+</script>
+{% endblock %}

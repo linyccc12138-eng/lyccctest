@@ -1,0 +1,110 @@
+/* ==================== 转码状态标签 ==================== */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.status-loading {
+    background: #f0f0f0;
+    color: #666;
+}
+
+.status-pending {
+    background: #fff7e6;
+    color: #fa8c16;
+    border: 1px solid #ffd591;
+}
+
+.status-processing {
+    background: #e6f7ff;
+    color: #1890ff;
+    border: 1px solid #91d5ff;
+    animation: pulse 2s infinite;
+}
+
+.status-success {
+    background: #f6ffed;
+    color: #52c41a;
+    border: 1px solid #b7eb8f;
+}
+
+.status-failed {
+    background: #fff2f0;
+    color: #ff4d4f;
+    border: 1px solid #ffccc7;
+}
+
+.status-none {
+    background: #f5f5f5;
+    color: #999;
+    border: 1px solid #d9d9d9;
+}
+
+.transcode-status-badge {
+    margin-left: 8px;
+    font-size: 12px;
+}
+
+.transcode-status-badge .status-pending,
+.transcode-status-badge .status-processing,
+.transcode-status-badge .status-success,
+.transcode-status-badge .status-failed,
+.transcode-status-badge .status-none {
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* 上传进度条 */
+.upload-progress {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f6ffed;
+    border-radius: var(--radius);
+    border: 1px solid #b7eb8f;
+}
+
+.upload-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e8e8e8;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.upload-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #52c41a, #73d13d);
+    transition: width 0.3s ease;
+}
+
+.upload-status-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* 视频管理表格优化 */
+.video-list-table .data-table td {
+    vertical-align: middle;
+}
+
+.video-list-table .btn-sm {
+    margin-right: 5px;
+}
+
+/* 章节列表转码状态 */
+.chapter-item-admin .transcode-status-badge {
+    display: inline-block;
+    margin-top: 5px;
+}

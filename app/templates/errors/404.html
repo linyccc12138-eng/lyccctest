@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}页面未找到 - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full text-center">
+        <!-- 魔法图标 -->
+        <div class="mb-6 sm:mb-8">
+            <div class="relative inline-block">
+                <!-- 发光背景 -->
+                <div class="absolute inset-0 bg-magic-400 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+                <!-- 图标容器 -->
+                <div class="relative w-24 h-24 sm:w-32 sm:h-32 mx-auto bg-gradient-to-br from-magic-300 to-magic-600 rounded-full flex items-center justify-center shadow-magic">
+                    <i class="ph ph-sparkle text-4xl sm:text-5xl text-white"></i>
+                </div>
+                <!-- 装饰星星 -->
+                <div class="absolute -top-2 -right-2 text-magic-400 animate-bounce">
+                    <i class="ph ph-star text-xl sm:text-2xl"></i>
+                </div>
+                <div class="absolute -bottom-1 -left-3 text-pink-accent animate-bounce" style="animation-delay: 0.2s;">
+                    <i class="ph ph-star-four text-lg sm:text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 错误代码 -->
+        <div class="mb-4 sm:mb-6">
+            <h1 class="text-6xl sm:text-8xl font-bold bg-gradient-to-r from-magic-600 via-magic-500 to-pink-accent bg-clip-text text-transparent tracking-tight">
+                404
+            </h1>
+        </div>
+
+        <!-- 错误信息 -->
+        <div class="mb-6 sm:mb-8 space-y-2 sm:space-y-3">
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-800">
+                页面未找到
+            </h2>
+            <p class="text-sm sm:text-base text-gray-600 px-2 sm:px-0">
+                抱歉，您访问的页面似乎被魔法传送到了另一个维度 ✨
+            </p>
+        </div>
+
+        <!-- 操作建议 -->
+        <div class="bg-white/60 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-4 sm:p-6 mb-6 sm:mb-8 shadow-card">
+            <div class="flex items-start space-x-3 text-left">
+                <div class="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-magic-100 rounded-full flex items-center justify-center">
+                    <i class="ph ph-magic-wand text-magic-600 text-sm sm:text-base"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-xs sm:text-sm text-gray-600">
+                        您可以尝试返回首页，或使用搜索功能查找所需内容
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+            <a href="{{ url_for('user.dashboard') }}" 
+               class="inline-flex items-center justify-center px-6 py-3 sm:py-3.5 bg-gradient-to-r from-magic-500 to-magic-600 text-white font-medium rounded-xl sm:rounded-2xl shadow-lg shadow-magic-500/30 hover:shadow-xl hover:shadow-magic-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 text-sm sm:text-base">
+                <i class="ph ph-house mr-2 text-lg"></i>
+                返回首页
+            </a>
+            <button onclick="history.back()" 
+                    class="inline-flex items-center justify-center px-6 py-3 sm:py-3.5 bg-white text-magic-600 font-medium rounded-xl sm:rounded-2xl border-2 border-magic-200 hover:border-magic-300 hover:bg-magic-50 active:scale-[0.98] transition-all duration-200 text-sm sm:text-base">
+                <i class="ph ph-arrow-u-up-left mr-2 text-lg"></i>
+                返回上页
+            </button>
+        </div>
+
+        <!-- 装饰元素 -->
+        <div class="mt-8 sm:mt-12 flex justify-center space-x-2 text-magic-300">
+            <i class="ph ph-star text-xs sm:text-sm animate-pulse"></i>
+            <i class="ph ph-moon text-xs sm:text-sm animate-pulse" style="animation-delay: 0.3s;"></i>
+            <i class="ph ph-star text-xs sm:text-sm animate-pulse" style="animation-delay: 0.6s;"></i>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 移动端优化 */
+@media (max-width: 640px) {
+    .error-container {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* 动画效果 */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+    animation: float 3s ease-in-out infinite;
+}
+</style>
+{% endblock %}

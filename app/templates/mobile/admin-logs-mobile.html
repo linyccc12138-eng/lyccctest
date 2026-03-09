@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#6B4E7C">
+    <title>日志管理 - {{ site_name }}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    
+    <!-- Mobile Mucha CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        /* 日志管理特定样式 */
+        .filter-section {
+            padding: var(--space-md);
+            background: linear-gradient(135deg, var(--mucha-purple-dark) 0%, #4A3A5A 100%);
+        }
+        
+        .filter-tabs {
+            display: flex;
+            gap: var(--space-sm);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .filter-tabs::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .filter-tab {
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-full);
+            font-size: 13px;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-tab.active {
+            background: white;
+            color: var(--mucha-purple-dark);
+        }
+        
+        .log-list {
+            padding: var(--space-md);
+        }
+        
+        .log-item {
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-md);
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border-color);
+        }
+        
+        .log-item .log-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--space-sm);
+        }
+        
+        .log-item .log-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: var(--radius-full);
+        }
+        
+        .log-item .log-type.success {
+            background: var(--mucha-mint-light);
+            color: #4A8B6F;
+        }
+        
+        .log-item .log-type.fail {
+            background: #F8D7DA;
+            color: #721C24;
+        }
+        
+        .log-item .log-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .log-item .log-content {
+            font-size: 14px;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+        
+        .log-item .log-detail {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: var(--space-sm);
+            padding-top: var(--space-sm);
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* 空状态 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-xl);
+            text-align: center;
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            color: var(--mucha-purple-light);
+            margin-bottom: var(--space-md);
+        }
+        
+        .empty-state h3 {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+        
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-md);
+        }
+        
+        .pagination a, .pagination span {
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            text-decoration: none;
+        }
+        
+        .pagination a {
+            background: var(--mucha-purple);
+            color: white;
+        }
+        
+        .pagination span {
+            background: var(--bg-card);
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景 -->
+    <div class="mucha-bg"></div>
+    
+    <!-- 顶部导航 -->
+    <nav class="mucha-navbar" style="background: transparent; border: none;">
+        <a href="{{ url_for('mobile.mobile_admin_dashboard') }}" class="nav-back" style="background: rgba(255,255,255,0.2); color: white;">
+            <i class="ph ph-arrow-left"></i>
+        </a>
+        <span class="nav-title" style="color: white;">
+            <i class="ph ph-scroll"></i>
+            登录日志
+        </span>
+        <div style="width: 40px;"></div>
+    </nav>
+    
+    <!-- 主内容 -->
+    <div class="mucha-content no-navbar no-bottom-nav">
+        <!-- 筛选区域 -->
+        <div class="filter-section">
+            <div class="filter-tabs hide-scrollbar">
+                <a href="{{ url_for('mobile.mobile_admin_logs') }}" class="filter-tab {% if not log_type %}active{% endif %}">全部</a>
+                <a href="{{ url_for('mobile.mobile_admin_logs', type='success') }}" class="filter-tab {% if log_type == 'success' %}active{% endif %}">成功</a>
+                <a href="{{ url_for('mobile.mobile_admin_logs', type='fail') }}" class="filter-tab {% if log_type == 'fail' %}active{% endif %}">失败</a>
+            </div>
+        </div>
+        
+        <!-- 日志列表 -->
+        <div class="log-list" id="logList">
+            {% if logs %}
+                {% for log in logs %}
+                <div class="log-item" data-type="{% if log.is_success %}success{% else %}fail{% endif %}">
+                    <div class="log-header">
+                        <span class="log-type {% if log.is_success %}success{% else %}fail{% endif %}">
+                            {% if log.is_success %}
+                            <i class="ph ph-check-circle"></i> 登录成功
+                            {% else %}
+                            <i class="ph ph-x-circle"></i> 登录失败
+                            {% endif %}
+                        </span>
+                        <span class="log-time">{{ log.login_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <div class="log-content">用户: {{ log.phone or '未知' }}</div>
+                    {% if log.fail_reason %}
+                    <div class="log-detail">原因: {{ log.fail_reason }}</div>
+                    {% endif %}
+                    <div class="log-detail">IP: {{ log.ip_address }} | 客户端: {{ log.client_type or '未知' }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="ph ph-scroll"></i>
+                    <h3>暂无日志</h3>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- 分页 -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="pagination">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('mobile.mobile_admin_logs', page=pagination.prev_num, type=log_type) }}"><i class="ph ph-caret-left"></i></a>
+            {% endif %}
+            <span>{{ pagination.page }} / {{ pagination.pages }}</span>
+            
+            {% if pagination.has_next %}
+            <a href="{{ url_for('mobile.mobile_admin_logs', page=pagination.next_num, type=log_type) }}"><i class="ph ph-caret-right"></i></a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

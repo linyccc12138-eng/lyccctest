@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#6B4E7C">
+    <title>系统配置 - {{ site_name }}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        .config-list {
+            padding: var(--space-md);
+        }
+        
+        .config-item {
+            padding: var(--space-lg);
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-md);
+            box-shadow: var(--shadow-soft);
+        }
+        
+        .config-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: var(--space-xs);
+        }
+        
+        .config-value {
+            font-size: 15px;
+            color: var(--text-primary);
+            font-weight: 600;
+            word-break: break-all;
+        }
+        
+        .config-value.empty {
+            color: var(--text-muted);
+            font-weight: normal;
+            font-style: italic;
+        }
+        
+        .hint {
+            padding: var(--space-md);
+            margin: var(--space-md);
+            background: var(--mucha-purple-light);
+            border-radius: var(--radius-lg);
+            font-size: 13px;
+            color: var(--mucha-purple-dark);
+            text-align: center;
+        }
+        
+        .hint i {
+            margin-right: var(--space-sm);
+        }
+    </style>
+</head>
+<body>
+    <div class="mucha-bg"></div>
+    
+    <nav class="mucha-navbar" style="background: transparent; border: none;">
+        <a href="{{ url_for('mobile.mobile_admin_dashboard') }}" class="nav-back" style="background: rgba(255,255,255,0.2); color: white;">
+            <i class="ph ph-arrow-left"></i>
+        </a>
+        <span class="nav-title" style="color: white;">
+            <i class="ph ph-gear"></i>
+            系统配置
+        </span>
+        <div style="width: 40px;"></div>
+    </nav>
+    
+    <div class="mucha-content no-navbar no-bottom-nav">
+        <div class="hint">
+            <i class="ph ph-desktop"></i>
+            如需修改配置，请使用电脑访问PC端管理后台
+        </div>
+        
+        <div class="config-list">
+            <div class="config-item">
+                <div class="config-label">腾讯云 AppID</div>
+                <div class="config-value {% if not configs.app_id %}empty{% endif %}">
+                    {{ configs.app_id or '未配置' }}
+                </div>
+            </div>
+            
+            <div class="config-item">
+                <div class="config-label">License URL</div>
+                <div class="config-value {% if not configs.license_url %}empty{% endif %}">
+                    {{ configs.license_url or '未配置' }}
+                </div>
+            </div>
+            
+            <div class="config-item">
+                <div class="config-label">每小时访问限制</div>
+                <div class="config-value">{{ configs.hourly_access_limit }} 次</div>
+            </div>
+            
+            <div class="config-item">
+                <div class="config-label">登录失败限制</div>
+                <div class="config-value">{{ configs.login_fail_limit }} 次</div>
+            </div>
+            
+            <div class="config-item">
+                <div class="config-label">IP失败限制</div>
+                <div class="config-value">{{ configs.ip_fail_limit }} 次</div>
+            </div>
+            
+            <div class="config-item">
+                <div class="config-label">Psign过期时间</div>
+                <div class="config-value">{{ configs.psign_expire_seconds }} 秒</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,850 @@
+{% extends 'base.html' %}
+
+{% block title %}锁定管理 - {{ site_name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-admin md:flex hidden">
+    <div class="navbar-brand">
+        <a href="{{ url_for('admin.dashboard') }}">
+            <i class="ph ph-shield-check mr-1"></i>管理后台
+        </a>
+    </div>
+    <div class="navbar-menu">
+        <a href="{{ url_for('admin.users') }}" class="nav-link">
+            <i class="ph ph-users mr-1"></i>用户管理
+        </a>
+        <a href="{{ url_for('admin.courses') }}" class="nav-link">
+            <i class="ph ph-books mr-1"></i>课程管理
+        </a>
+        <a href="{{ url_for('admin.videos') }}" class="nav-link">
+            <i class="ph ph-video mr-1"></i>视频管理
+        </a>
+        <a href="{{ url_for('admin.events') }}" class="nav-link">
+            <i class="ph ph-calendar-check mr-1"></i>事件管理
+        </a>
+        <a href="{{ url_for('admin.logs') }}" class="nav-link">
+            <i class="ph ph-scroll mr-1"></i>日志管理
+        </a>
+        <a href="{{ url_for('admin.locked') }}" class="nav-link active">
+            <i class="ph ph-lock-key mr-1"></i>锁定管理
+        </a>
+        <a href="{{ url_for('admin.system_config') }}" class="nav-link">
+            <i class="ph ph-gear mr-1"></i>系统配置
+        </a>
+        <form action="{{ url_for('auth.logout') }}" method="post" style="display: inline;" id="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-link flex items-center gap-1" style="background: none; border: none; cursor: pointer; font-size: inherit;" id="logout-btn">
+                <i class="ph ph-sign-out"></i>退出
+            </button>
+        </form>
+    </div>
+</nav>
+
+<!-- 移动端顶部简化导航 -->
+<nav class="md:hidden navbar navbar-admin">
+    <div class="navbar-brand flex items-center gap-2">
+        <i class="ph ph-shield-check text-xl"></i>
+        <span>锁定管理</span>
+    </div>
+    <button id="mobile-menu-btn" class="text-white p-2">
+        <i class="ph ph-list text-2xl"></i>
+    </button>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1 class="page-title">
+        <i class="ph ph-lock-key"></i>
+        锁定管理
+    </h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="users">
+            <i class="ph ph-user"></i>
+            <span>锁定用户</span>
+        </button>
+        <button class="tab-btn" data-tab="ips">
+            <i class="ph ph-globe"></i>
+            <span>锁定IP</span>
+        </button>
+    </div>
+    
+    <div class="tab-content" id="users-tab">
+        <h2 class="section-title">已锁定用户</h2>
+        
+        {% if locked_users %}
+        <!-- 桌面端表格 -->
+        <div class="table-responsive desktop-only">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>手机号</th>
+                        <th>备注</th>
+                        <th>失败次数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in locked_users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.phone }}</td>
+                        <td>{{ user.remark or '-' }}</td>
+                        <td>{{ user.login_fail_count }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.unlock_user', user_id=user.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="ph ph-lock-open"></i>
+                                    解锁
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 移动端卡片 -->
+        <div class="card-list mobile-only">
+            {% for user in locked_users %}
+            <div class="data-card">
+                <div class="card-header">
+                    <span class="card-id">#{{ user.id }}</span>
+                    <span class="badge badge-danger">
+                        <i class="ph ph-warning-circle"></i>
+                        {{ user.login_fail_count }}次失败
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="card-field">
+                        <span class="field-label">
+                            <i class="ph ph-phone"></i>
+                            手机号
+                        </span>
+                        <span class="field-value">{{ user.phone }}</span>
+                    </div>
+                    <div class="card-field">
+                        <span class="field-label">
+                            <i class="ph ph-note"></i>
+                            备注
+                        </span>
+                        <span class="field-value">{{ user.remark or '-' }}</span>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form method="POST" action="{{ url_for('admin.unlock_user', user_id=user.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success btn-block">
+                            <i class="ph ph-lock-open"></i>
+                            解锁用户
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="ph ph-lock-key-open"></i>
+            <p>暂无锁定的用户</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="tab-content hidden" id="ips-tab">
+        <h2 class="section-title">已锁定IP</h2>
+        
+        {% if locked_ips %}
+        <!-- 桌面端表格 -->
+        <div class="table-responsive desktop-only">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>IP地址</th>
+                        <th>失败次数</th>
+                        <th>锁定时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ip in locked_ips %}
+                    <tr>
+                        <td>{{ ip.id }}</td>
+                        <td>{{ ip.ip_address }}</td>
+                        <td>{{ ip.fail_count }}</td>
+                        <td>{{ ip.locked_at|utc8 }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.unlock_ip_address', ip_address=ip.ip_address) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="ph ph-lock-open"></i>
+                                    解锁
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 移动端卡片 -->
+        <div class="card-list mobile-only">
+            {% for ip in locked_ips %}
+            <div class="data-card">
+                <div class="card-header">
+                    <span class="card-id">#{{ ip.id }}</span>
+                    <span class="badge badge-danger">
+                        <i class="ph ph-warning-circle"></i>
+                        {{ ip.fail_count }}次失败
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="card-field">
+                        <span class="field-label">
+                            <i class="ph ph-globe"></i>
+                            IP地址
+                        </span>
+                        <span class="field-value font-mono">{{ ip.ip_address }}</span>
+                    </div>
+                    <div class="card-field">
+                        <span class="field-label">
+                            <i class="ph ph-clock"></i>
+                            锁定时间
+                        </span>
+                        <span class="field-value">{{ ip.locked_at|utc8 }}</span>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form method="POST" action="{{ url_for('admin.unlock_ip_address', ip_address=ip.ip_address) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success btn-block">
+                            <i class="ph ph-lock-open"></i>
+                            解锁IP
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="ph ph-lock-key-open"></i>
+            <p>暂无锁定的IP</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ==================== 基础变量 ==================== */
+:root {
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --success: #10b981;
+    --success-dark: #059669;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --radius-sm: 0.375rem;
+    --radius: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+}
+
+/* ==================== 显示控制 ==================== */
+.mobile-only {
+    display: none !important;
+}
+
+.desktop-only {
+    display: block !important;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block !important;
+    }
+    
+    .desktop-only {
+        display: none !important;
+    }
+}
+
+/* ==================== 导航栏 ==================== */
+.navbar-admin {
+    background: rgba(30, 27, 75, 0.95);
+    color: white;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.5rem;
+}
+
+.menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s;
+}
+
+.menu-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-brand a {
+    color: white;
+    text-decoration: none;
+    font-size: 1.25rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.navbar-brand a i {
+    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.navbar-menu {
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    gap: 0.25rem;
+}
+
+.nav-link {
+    color: #fff;
+    text-decoration: none;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.nav-link:hover {
+    color: white;
+    background-color: rgba(139, 92, 246, 0.3);
+}
+
+.nav-link.active {
+    color: white;
+    background-color: rgba(139, 92, 246, 0.3);
+}
+
+.nav-link i {
+    font-size: 1.125rem;
+}
+
+.nav-logout-form {
+    display: inline;
+    margin: 0;
+}
+
+.logout-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+    justify-content: flex-start;
+    color: #fff;
+}
+
+/* 菜单遮罩 */
+.menu-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.menu-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* 移动端导航 */
+@media (max-width: 1024px) {
+    .menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .navbar-menu {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        background: rgba(30, 27, 75, 0.98);
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem 0;
+        gap: 0;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1001;
+        overflow-y: auto;
+    }
+    
+    .navbar-menu.active {
+        transform: translateX(0);
+    }
+    
+    .nav-link {
+        padding: 1rem 1.5rem;
+        border-radius: 0;
+        border-left: 3px solid transparent;
+    }
+    
+    .nav-link:hover {
+        background-color: rgba(139, 92, 246, 0.2);
+    }
+    
+    .nav-link.active {
+        border-left-color: var(--primary);
+        background-color: rgba(139, 92, 246, 0.2);
+    }
+}
+
+/* ==================== 主容器 ==================== */
+.admin-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+@media (max-width: 768px) {
+    .admin-container {
+        padding: 1rem;
+    }
+}
+
+/* ==================== 页面标题 ==================== */
+.page-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.page-title i {
+    color: var(--primary);
+    font-size: 2rem;
+}
+
+@media (max-width: 768px) {
+    .page-title {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .page-title i {
+        font-size: 1.75rem;
+    }
+}
+
+/* ==================== 标签页 ==================== */
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--gray-200);
+    padding-bottom: 0;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--gray-500);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    color: var(--gray-700);
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.tab-btn i {
+    font-size: 1.25rem;
+}
+
+@media (max-width: 768px) {
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
+    .tabs::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .tab-btn {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+    }
+}
+
+.tab-content.hidden {
+    display: none;
+}
+
+/* ==================== 章节标题 ==================== */
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .section-title {
+        font-size: 1.125rem;
+    }
+}
+
+/* ==================== 表格样式 ==================== */
+.table-responsive {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+}
+
+.table th,
+.table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.table th {
+    background-color: var(--gray-50);
+    font-weight: 600;
+    color: var(--gray-600);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.table tbody tr:hover {
+    background-color: var(--gray-50);
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+@media (max-width: 768px) {
+    .table th,
+    .table td {
+        padding: 0.875rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* ==================== 卡片列表 ==================== */
+.card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.data-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background-color: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.card-id {
+    font-weight: 600;
+    color: var(--gray-600);
+    font-size: 0.875rem;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-danger {
+    background-color: #fef2f2;
+    color: var(--danger);
+}
+
+.card-body {
+    padding: 1rem;
+}
+
+.card-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.card-field:last-child {
+    border-bottom: none;
+}
+
+.field-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+.field-label i {
+    font-size: 1rem;
+}
+
+.field-value {
+    font-weight: 500;
+    color: var(--gray-800);
+    font-size: 0.9375rem;
+}
+
+.font-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.875rem;
+}
+
+.card-footer {
+    padding: 1rem;
+    border-top: 1px solid var(--gray-200);
+    background-color: var(--gray-50);
+}
+
+/* ==================== 按钮 ==================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-sm {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+}
+
+.btn-success {
+    background-color: var(--success);
+    color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+    background-color: var(--success-dark);
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn i {
+    font-size: 1rem;
+}
+
+/* ==================== 空状态 ==================== */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: var(--gray-300);
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    font-size: 1.125rem;
+    color: var(--gray-500);
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .empty-state {
+        padding: 3rem 1.5rem;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+    }
+    
+    .empty-state p {
+        font-size: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 标签页切换
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(function(c) {
+                c.classList.add('hidden');
+            });
+            
+            this.classList.add('active');
+            document.getElementById(this.dataset.tab + '-tab').classList.remove('hidden');
+        });
+    });
+    
+    // 移动端侧边栏菜单
+    (function() {
+        var menuToggle = document.getElementById('menuToggle');
+        var navbarMenu = document.getElementById('navbarMenu');
+        var menuOverlay = document.getElementById('menuOverlay');
+        
+        if (menuToggle && navbarMenu && menuOverlay) {
+            // 打开菜单
+            menuToggle.addEventListener('click', function() {
+                navbarMenu.classList.add('active');
+                menuOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
+            
+            // 关闭菜单
+            function closeMenu() {
+                navbarMenu.classList.remove('active');
+                menuOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            menuOverlay.addEventListener('click', closeMenu);
+            
+            // 点击菜单项后自动关闭（移动端）
+            var navLinks = navbarMenu.querySelectorAll('.nav-link');
+            navLinks.forEach(function(link) {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        closeMenu();
+                    }
+                });
+            });
+            
+            // ESC键关闭菜单
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && navbarMenu.classList.contains('active')) {
+                    closeMenu();
+                }
+            });
+        }
+    })();
+</script>
+{% endblock %}

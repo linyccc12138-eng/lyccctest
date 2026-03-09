@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#9B7CB6">
+    <title>{{ course.title }} - {{ site_name }}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    
+    <!-- Mobile Mucha CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        /* 课程详情特定样式 */
+        .course-header {
+            position: relative;
+            background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+            padding: var(--space-lg);
+            padding-top: calc(var(--top-nav-height) + var(--space-lg));
+            color: white;
+        }
+        
+        .course-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('{{ url_for('static', filename='images/mucha-bg-1.webp') }}') center/cover;
+            opacity: 0.1;
+        }
+        
+        .course-header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .course-title {
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: var(--space-sm);
+            line-height: 1.3;
+        }
+        
+        .course-desc {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.5;
+            margin-bottom: var(--space-md);
+        }
+        
+        .course-meta {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            flex-wrap: wrap;
+        }
+        
+        .course-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
+        .course-progress {
+            margin-top: var(--space-md);
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-sm);
+            font-size: 13px;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--mucha-gold) 0%, var(--mucha-gold-light) 100%);
+            border-radius: var(--radius-full);
+            transition: width 0.3s ease;
+        }
+        
+        .continue-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+            padding: var(--space-md) var(--space-xl);
+            background: var(--mucha-gold);
+            color: var(--mucha-purple-dark);
+            border-radius: var(--radius-full);
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+        
+        .continue-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .continue-btn.locked {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            box-shadow: none;
+        }
+        
+        /* 章节列表 */
+        .chapters-section {
+            padding: var(--space-md);
+        }
+        
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--mucha-purple-dark);
+            margin-bottom: var(--space-md);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+        
+        .section-title i {
+            color: var(--mucha-gold);
+        }
+        
+        .chapter-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+        
+        .chapter-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border-color);
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+        }
+        
+        .chapter-item:active {
+            transform: scale(0.98);
+        }
+        
+        .chapter-item.locked {
+            opacity: 0.7;
+        }
+        
+        .chapter-item .chapter-number {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-full);
+            background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .chapter-item.locked .chapter-number {
+            background: var(--text-muted);
+        }
+        
+        .chapter-item .chapter-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .chapter-item .chapter-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .chapter-item .chapter-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        
+        .chapter-item .chapter-status {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        
+        .chapter-item .chapter-status.play {
+            background: var(--mucha-gold-light);
+            color: var(--mucha-purple-dark);
+        }
+        
+        .chapter-item .chapter-status.locked {
+            background: #F8D7DA;
+            color: #721C24;
+        }
+        
+        .chapter-item .chapter-status.completed {
+            background: var(--mucha-mint-light);
+            color: #4A8B6F;
+        }
+        
+        /* 空状态 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-xl);
+            text-align: center;
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            color: var(--mucha-purple-light);
+            margin-bottom: var(--space-md);
+        }
+        
+        .empty-state h3 {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+        
+        /* 锁定提示 */
+        .lock-notice {
+            background: linear-gradient(135deg, #FFF3CD 0%, #FFE8A1 100%);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            margin: var(--space-md);
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+        
+        .lock-notice i {
+            font-size: 24px;
+            color: #856404;
+        }
+        
+        .lock-notice p {
+            font-size: 13px;
+            color: #856404;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景 -->
+    <div class="mucha-bg"></div>
+    
+    <!-- 顶部导航 -->
+    <nav class="mucha-navbar" style="background: transparent; border: none;">
+        <a href="{{ url_for('mobile.mobile_courses') }}" class="nav-back" style="background: rgba(255,255,255,0.2); color: white;">
+            <i class="ph ph-arrow-left"></i>
+        </a>
+        <span class="nav-title" style="color: white;">
+            <i class="ph ph-book-open"></i>
+            课程详情
+        </span>
+        <div style="width: 40px;"></div>
+    </nav>
+    
+    <!-- 主内容 -->
+    <div class="mucha-content no-bottom-nav no-navbar">
+        <!-- 课程头部 -->
+        <div class="course-header">
+            <div class="course-header-content">
+                <h1 class="course-title">{{ course.title }}</h1>
+                <p class="course-desc">{{ course.description or '暂无课程简介' }}</p>
+                <div class="course-meta">
+                    <span class="course-meta-item">
+                        <i class="ph ph-list-numbers"></i>
+                        {{ chapters|length }} 章节
+                    </span>
+                    <span class="course-meta-item">
+                        <i class="ph ph-users"></i>
+                        {{ course.students_count or 0 }} 学员
+                    </span>
+                </div>
+                
+                {% if course.id in allowed_course_ids and progress %}
+                <div class="course-progress">
+                    <div class="progress-header">
+                        <span>学习进度</span>
+                        <span>{{ "%.0f"|format(progress.percentage) }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ progress.percentage }}%"></div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if course.id in allowed_course_ids and last_chapter %}
+                <a href="{{ url_for('mobile.mobile_play', chapter_id=last_chapter.id) }}" class="continue-btn">
+                    <i class="ph ph-play-fill"></i>
+                    继续学习
+                </a>
+                {% elif course.id not in allowed_course_ids %}
+                <span class="continue-btn locked">
+                    <i class="ph ph-lock-key"></i>
+                    暂无权限
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 锁定提示 -->
+        {% if course.id not in allowed_course_ids %}
+        <div class="lock-notice">
+            <i class="ph ph-lock-key"></i>
+            <p>该课程暂未对您开放，请联系管理员获取学习权限</p>
+        </div>
+        {% endif %}
+        
+        <!-- 章节列表 -->
+        <div class="chapters-section">
+            <h2 class="section-title">
+                <i class="ph ph-list-dashes"></i>
+                课程章节
+            </h2>
+            
+            {% if chapters %}
+            <div class="chapter-list">
+                {% for chapter in chapters %}
+                {% set is_locked = course.id not in allowed_course_ids %}
+                {% set is_completed = progress and chapter.id in progress.completed_chapter_ids %}
+                
+                {% if is_locked %}
+                <div class="chapter-item locked">
+                    <div class="chapter-number">{{ loop.index }}</div>
+                    <div class="chapter-content">
+                        <div class="chapter-title">{{ chapter.title }}</div>
+                        <div class="chapter-meta">{{ '1 个视频' if chapter.file_id else '0 个视频' }}</div>
+                    </div>
+                    <div class="chapter-status locked">
+                        <i class="ph ph-lock-key"></i>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{{ url_for('mobile.mobile_play', chapter_id=chapter.id) }}" class="chapter-item">
+                    <div class="chapter-number">{{ loop.index }}</div>
+                    <div class="chapter-content">
+                        <div class="chapter-title">{{ chapter.title }}</div>
+                        <div class="chapter-meta">{{ '1 个视频' if chapter.file_id else '0 个视频' }}</div>
+                    </div>
+                    <div class="chapter-status {% if is_completed %}completed{% else %}play{% endif %}">
+                        {% if is_completed %}
+                        <i class="ph ph-check-circle"></i>
+                        {% else %}
+                        <i class="ph ph-play-circle"></i>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="ph ph-list-dashes"></i>
+                <h3>暂无章节</h3>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- 底部导航 -->
+    <nav class="mucha-bottom-nav">
+        <a href="{{ url_for('mobile.mobile_dashboard') }}" class="nav-item">
+            <i class="ph ph-house"></i>
+            <span>首页</span>
+        </a>
+        <a href="{{ url_for('mobile.mobile_courses') }}" class="nav-item active">
+            <i class="ph ph-books"></i>
+            <span>课程</span>
+        </a>
+        <a href="{{ url_for('mobile.mobile_my_courses') }}" class="nav-item">
+            <i class="ph ph-book-bookmark"></i>
+            <span>我的</span>
+        </a>
+        <a href="{{ url_for('mobile.mobile_history') }}" class="nav-item">
+            <i class="ph ph-clock-counter-clockwise"></i>
+            <span>历史</span>
+        </a>
+        <a href="{{ url_for('mobile.mobile_change_password') }}" class="nav-item">
+            <i class="ph ph-user"></i>
+            <span>我的</span>
+        </a>
+    </nav>
+    
+    <script>
+        // 获取CSRF Token
+        window.getCsrfToken = function() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        };
+    </script>
+</body>
+</html>

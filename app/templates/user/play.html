@@ -1,0 +1,1001 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ chapter.title }} - {{ course.title }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar md:flex hidden">
+    <div class="navbar-brand">
+        <a href="{{ url_for('user.dashboard') }}">{{ site_name }}</a>
+    </div>
+    <div class="navbar-menu">
+        <a href="{{ url_for('user.dashboard') }}" class="nav-link">
+            <i class="ph ph-house mr-1"></i>首页
+        </a>
+        <a href="{{ url_for('user.my_courses') }}" class="nav-link">
+            <i class="ph ph-book-bookmark mr-1"></i>我的课程
+        </a>
+        <a href="{{ url_for('user.history') }}" class="nav-link">
+            <i class="ph ph-clock-counter-clockwise mr-1"></i>播放历史
+        </a>
+        <a href="{{ url_for('course.list_courses') }}" class="nav-link">
+            <i class="ph ph-books mr-1"></i>全部课程
+        </a>
+        <a href="{{ url_for('user.change_password') }}" class="nav-link">
+            <i class="ph ph-key mr-1"></i>修改密码
+        </a>
+        <a href="{{ url_for('auth.logout') }}" class="nav-link">
+            <i class="ph ph-sign-out mr-1"></i>退出
+        </a>
+    </div>
+</nav>
+
+<!-- 移动端顶部简化导航 -->
+<nav class="md:hidden navbar">
+    <div class="navbar-brand flex items-center gap-2">
+        <a href="{{ url_for('course.detail', course_id=course.id) }}" class="flex items-center gap-2">
+            <i class="ph ph-arrow-left text-xl"></i>
+            <span class="truncate max-w-[180px]">{{ chapter.title }}</span>
+        </a>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="play-container">
+    <!-- 课程标题 -->
+    <div class="play-header">
+        <h1 class="text-lg md:text-xl font-semibold flex items-center gap-2">
+            <span class="hidden md:inline">{{ course.title }} - </span>
+            {{ chapter.title }}
+        </h1>
+    </div>
+
+    <!-- 播放器容器 -->
+    <div class="player-wrapper bg-black rounded-2xl overflow-hidden shadow-lg" id="player-wrapper">
+        {% if chapter.file_id %}
+        <video id="player-container" preload="auto" playsinline webkit-playsinline></video>
+        {% else %}
+        <div class="no-video">
+            <div class="text-center text-white">
+                <i class="ph ph-video-camera-slash text-5xl mb-3 opacity-50"></i>
+                <p class="text-lg">视频尚未上传</p>
+                <p class="text-sm opacity-70 mt-1">请稍后再试</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 播放列表 -->
+    {% if chapters|length > 1 %}
+    <div class="playlist mt-6">
+        <h3 class="flex items-center gap-2 mb-4">
+            <i class="ph ph-list-dashes text-magic-500"></i>
+            播放列表
+            <span class="text-sm text-gray-500 font-normal">({{ chapters|length }} 集)</span>
+        </h3>
+        <div class="playlist-items max-h-[400px] overflow-y-auto">
+            {% for ch in chapters %}
+            <a href="{{ url_for('play.play', chapter_id=ch.id) }}"
+               class="playlist-item {% if ch.id == current_chapter_id %}active{% endif %}">
+                <span class="playlist-number flex-shrink-0">{{ loop.index }}</span>
+                <span class="playlist-title truncate">{{ ch.title }}</span>
+                {% if ch.id == current_chapter_id %}
+                <span class="playing-badge flex-shrink-0">
+                    <i class="ph ph-play-circle mr-1"></i>播放中
+                </span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block mobile_nav %}
+<!-- 移动端底部导航栏 (播放页面简化版) -->
+<nav class="mobile-bottom-nav md:hidden" style="display: none;">
+    <!-- 播放页面隐藏底部导航，避免干扰视频控制 -->
+</nav>
+{% endblock %}
+
+{% block extra_js %}
+{% if chapter.file_id %}
+<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v5.1.0/tcplayer.v5.1.0.min.js"></script>
+<link rel="stylesheet" href="https://web.sdk.qcloud.com/player/tcplayer/release/v5.1.0/tcplayer.min.css">
+
+<script>
+    // 保留原有的播放器初始化代码，确保功能完整
+    (function () {
+        var fileId = '{{ chapter.file_id }}';
+        var chapterId = {{ chapter.id }};
+        var tencentConfig = {};
+        var player = null;
+        var heartbeatTimer = null;
+        var playbackToken = '';
+        var lastProgress = 0;
+        var touchStartX = 0;
+        var touchStartY = 0;
+
+        function getDeviceId() {
+            var key = 'course_player_device_id';
+            var id = localStorage.getItem(key);
+            if (!id) {
+                id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+                localStorage.setItem(key, id);
+            }
+            return id;
+        }
+
+        var deviceId = getDeviceId();
+        
+        // 视频分辨率信息
+        var videoWidth = {{ video_width or 'null' }};
+        var videoHeight = {{ video_height or 'null' }};
+
+        // 计算播放器尺寸，保持视频原始宽高比
+        function calculatePlayerSize() {
+            var wrapper = document.getElementById('player-wrapper');
+            if (!wrapper) return { width: 640, height: 360 };
+            
+            // 如果没有视频分辨率信息，使用默认 16:9 比例
+            if (!videoWidth || !videoHeight) {
+                videoWidth = 16;
+                videoHeight = 9;
+            }
+            
+            // 计算视频宽高比
+            var aspectRatio = videoWidth / videoHeight;
+            
+            // 移动端优化：全宽显示
+            var isMobile = window.innerWidth < 768;
+            var containerPadding = isMobile ? 16 : 40;
+            var containerWidth = Math.min(window.innerWidth - containerPadding, 1400);
+            
+            // 移动端高度限制更小，留出空间给播放列表
+            var maxHeightPercent = isMobile ? 0.5 : 0.75;
+            var maxHeight = window.innerHeight * maxHeightPercent;
+            
+            // 根据可用空间计算最佳尺寸
+            var targetWidth = containerWidth;
+            var targetHeight = targetWidth / aspectRatio;
+            
+            // 如果高度超出限制，则根据高度计算宽度
+            if (targetHeight > maxHeight) {
+                targetHeight = maxHeight;
+                targetWidth = targetHeight * aspectRatio;
+            }
+            
+            // 确保尺寸不小于最小值
+            var minWidth = isMobile ? 280 : 320;
+            var minHeight = minWidth / aspectRatio;
+            if (targetWidth < minWidth) {
+                targetWidth = minWidth;
+                targetHeight = minWidth / aspectRatio;
+            }
+            
+            return {
+                width: Math.floor(targetWidth),
+                height: Math.floor(targetHeight)
+            };
+        }
+        
+        function isFullscreenActive() {
+            return !!(document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement);
+        }
+
+        function getFullscreenSize() {
+            // 优先使用 screen 尺寸，这是设备屏幕的实际分辨率
+            // window.innerWidth/Height 在全屏动画期间可能不准确
+            var screenW = window.screen && window.screen.width ? window.screen.width : 1920;
+            var screenH = window.screen && window.screen.height ? window.screen.height : 1080;
+            
+            // 如果 screen 尺寸可用，优先使用它
+            if (screenW && screenH) {
+                return { width: screenW, height: screenH };
+            }
+            
+            // 备用方案
+            return {
+                width: Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0, screenW),
+                height: Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0, screenH)
+            };
+        }
+
+        function getPlayerDomNodes() {
+            var wrapper = document.getElementById('player-wrapper');
+            var tcplayer = wrapper ? wrapper.querySelector('.tcplayer') : null;
+            var videoJs = wrapper ? wrapper.querySelector('.video-js') : null;
+            // TCPlayer v5 可能使用不同的类名
+            var videoEl = document.getElementById('player-container_html5_api') || 
+                         (wrapper ? wrapper.querySelector('video.tcp-video, .vjs-tech video, video.vjs-tech, video') : null);
+            return {
+                wrapper: wrapper,
+                playContainer: document.querySelector('.play-container'),
+                containerEl: document.getElementById('player-container'),
+                tcplayerEl: tcplayer,
+                videoJsEl: videoJs,
+                vjsTechEl: wrapper ? wrapper.querySelector('.vjs-tech, .tcp-video') : null,
+                html5VideoEl: videoEl,
+                posterEl: wrapper ? wrapper.querySelector('.vjs-poster, .tcp-poster') : null,
+                canvasEl: wrapper ? wrapper.querySelector('canvas') : null
+            };
+        }
+
+        function getRectInfo(el) {
+            if (!el || !el.getBoundingClientRect) {
+                return null;
+            }
+            var rect = el.getBoundingClientRect();
+            return {
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+                top: Math.round(rect.top),
+                left: Math.round(rect.left)
+            };
+        }
+
+        function logPlayerState(stage, extra) {
+            var nodes = getPlayerDomNodes();
+            var videoEl = nodes.html5VideoEl;
+            var computedVideoStyle = videoEl ? window.getComputedStyle(videoEl) : null;
+            var expectedContainHeight = videoWidth && videoHeight
+                ? Math.round(window.innerWidth * (videoHeight / videoWidth))
+                : null;
+            console.log('[PlayerDebug]', {
+                stage: stage,
+                viewport: {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                },
+                documentFullscreen: isFullscreenActive(),
+                playerFullscreen: !!(player && player.isFullscreen && player.isFullscreen()),
+                targetSize: extra && extra.targetSize ? extra.targetSize : null,
+                expectedContainHeight: expectedContainHeight,
+                wrapperRect: getRectInfo(nodes.wrapper),
+                containerRect: getRectInfo(nodes.containerEl),
+                tcplayerRect: getRectInfo(nodes.tcplayerEl),
+                videoJsRect: getRectInfo(nodes.videoJsEl),
+                vjsTechRect: getRectInfo(nodes.vjsTechEl),
+                html5VideoRect: getRectInfo(videoEl),
+                posterRect: getRectInfo(nodes.posterEl),
+                canvasRect: getRectInfo(nodes.canvasEl),
+                html5VideoIntrinsic: videoEl ? {
+                    videoWidth: videoEl.videoWidth || 0,
+                    videoHeight: videoEl.videoHeight || 0,
+                    readyState: videoEl.readyState
+                } : null,
+                wrapperStyle: nodes.wrapper ? {
+                    width: nodes.wrapper.style.width,
+                    height: nodes.wrapper.style.height,
+                    className: nodes.wrapper.className
+                } : null,
+                videoJsStyle: nodes.videoJsEl ? {
+                    width: nodes.videoJsEl.style.width,
+                    height: nodes.videoJsEl.style.height,
+                    className: nodes.videoJsEl.className
+                } : null,
+                vjsTechStyle: nodes.vjsTechEl ? {
+                    width: nodes.vjsTechEl.style.width,
+                    height: nodes.vjsTechEl.style.height,
+                    className: nodes.vjsTechEl.className
+                } : null,
+                videoStyle: videoEl ? {
+                    width: videoEl.style.width,
+                    height: videoEl.style.height,
+                    objectFit: videoEl.style.objectFit,
+                    computedObjectFit: computedVideoStyle ? computedVideoStyle.objectFit : ''
+                } : null,
+                event: extra && extra.event ? extra.event : null
+            });
+        }
+
+        function applyPlayerApiSize(size, isFullscreen) {
+            if (!player) {
+                return;
+            }
+            // 全屏时不调用 player.width/height，让 TCPlayer 自动处理
+            if (isFullscreen) {
+                return;
+            }
+            if (typeof player.width === 'function') {
+                player.width(size.width);
+            }
+            if (typeof player.height === 'function') {
+                player.height(size.height);
+            } else if (typeof player.dimension === 'function') {
+                player.dimension(size.width, size.height);
+            }
+        }
+
+        function syncPlayerLayout(size, fillContainer, source) {
+            var nodes = getPlayerDomNodes();
+            var widthValue = fillContainer ? '100%' : size.width + 'px';
+            var heightValue = fillContainer ? '100%' : size.height + 'px';
+            var objectFitValue = fillContainer ? 'cover' : 'contain';
+
+            document.documentElement.classList.toggle('player-fullscreen-active', !!fillContainer);
+            document.body.classList.toggle('player-fullscreen-active', !!fillContainer);
+
+            if (nodes.playContainer) {
+                nodes.playContainer.classList.toggle('player-mode-fullscreen', !!fillContainer);
+            }
+
+            if (nodes.wrapper) {
+                if (fillContainer) {
+                    nodes.wrapper.classList.add('is-player-fullscreen');
+                    nodes.wrapper.style.width = '100vw';
+                    nodes.wrapper.style.height = '100vh';
+                    nodes.wrapper.style.maxWidth = 'none';
+                    nodes.wrapper.style.margin = '0';
+                    nodes.wrapper.style.borderRadius = '0';
+                    nodes.wrapper.style.boxShadow = 'none';
+                } else {
+                    nodes.wrapper.classList.remove('is-player-fullscreen');
+                    nodes.wrapper.style.width = size.width + 'px';
+                    nodes.wrapper.style.height = size.height + 'px';
+                    nodes.wrapper.style.maxWidth = '100%';
+                    nodes.wrapper.style.margin = '0 auto';
+                    nodes.wrapper.style.borderRadius = window.innerWidth < 768 ? '12px' : '16px';
+                    nodes.wrapper.style.boxShadow = '';
+                }
+            }
+
+            [nodes.containerEl, nodes.tcplayerEl, nodes.videoJsEl, nodes.vjsTechEl, nodes.html5VideoEl, nodes.posterEl, nodes.canvasEl].forEach(function (el) {
+                if (el) {
+                    el.style.width = widthValue;
+                    el.style.height = heightValue;
+                }
+            });
+
+            // 设置视频元素样式
+            [nodes.vjsTechEl, nodes.html5VideoEl].forEach(function (el) {
+                if (el) {
+                    el.style.objectFit = objectFitValue;
+                    el.style.objectPosition = 'center center';
+                    el.style.backgroundColor = '#000';
+                }
+            });
+
+            // 全屏时额外处理：查找并设置 wrapper 内的所有视频元素
+            if (fillContainer && nodes.wrapper) {
+                var allVideos = nodes.wrapper.querySelectorAll('video');
+                allVideos.forEach(function(video) {
+                    video.style.width = '100%';
+                    video.style.height = '100%';
+                    video.style.objectFit = 'cover';
+                    video.style.objectPosition = 'center center';
+                });
+                // 也尝试查找 TCPlayer v5 可能使用的元素
+                var tcpVideo = nodes.wrapper.querySelector('.tcp-video');
+                if (tcpVideo) {
+                    tcpVideo.style.width = '100%';
+                    tcpVideo.style.height = '100%';
+                    tcpVideo.style.objectFit = 'cover';
+                }
+            }
+
+            applyPlayerApiSize(size, fillContainer);
+            logPlayerState(source || (fillContainer ? 'sync-fullscreen' : 'sync-normal'), {
+                targetSize: size
+            });
+
+            return size;
+        }
+
+        // 设置播放器容器尺寸
+        function setPlayerSize(source, forceFullscreen) {
+            var fullscreen = typeof forceFullscreen === 'boolean'
+                ? forceFullscreen
+                : !!(player && player.isFullscreen && player.isFullscreen()) || isFullscreenActive();
+
+            if (fullscreen) {
+                return syncPlayerLayout(getFullscreenSize(), true, source || 'setPlayerSize:fullscreen');
+            }
+
+            return syncPlayerLayout(calculatePlayerSize(), false, source || 'setPlayerSize:normal');
+        }
+
+        fetch('/config/api/tencent')
+            .then(function (response) { return response.json(); })
+            .then(function (config) {
+                tencentConfig = config;
+                loadPsign();
+            })
+            .catch(function (error) {
+                console.error('获取配置失败:', error);
+                alert('获取播放器配置失败');
+            });
+
+        function loadPsign() {
+            fetch('/play/' + chapterId + '/psign', {
+                headers: {
+                    'X-Device-Id': deviceId
+                }
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        playbackToken = data.session_token || '';
+                        initPlayer(data.psign);
+                    } else {
+                        alert('获取播放授权失败：' + (data.error || '未知错误'));
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Error:', error);
+                    alert('获取播放授权失败');
+                });
+        }
+
+        function saveProgress(eventType, keepalive) {
+            if (!player || !playbackToken || player.duration() <= 0) {
+                return Promise.resolve();
+            }
+
+            var current = Math.floor(player.currentTime() || 0);
+            var total = Math.floor(player.duration() || 0);
+            var progress = total > 0 ? Number((current / total * 100).toFixed(2)) : 0;
+            var playbackRate = Number(player.playbackRate ? player.playbackRate() : 1);
+
+            return fetch('/play/' + chapterId + '/progress', {
+                method: 'POST',
+                keepalive: !!keepalive,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': window.getCsrfToken(),
+                    'X-Device-Id': deviceId,
+                    'X-Playback-Token': playbackToken
+                },
+                body: JSON.stringify({
+                    progress: progress,
+                    duration: current,
+                    playback_rate: playbackRate,
+                    event_type: eventType || 'heartbeat'
+                })
+            }).then(function (response) {
+                if (response.status === 409) {
+                    if (player && player.pause) {
+                        player.pause();
+                    }
+                    alert('当前设备会话已失效，请刷新页面重新播放');
+                }
+            }).catch(function (e) {
+                console.warn('保存进度失败', e);
+            });
+        }
+
+        function startHeartbeat() {
+            stopHeartbeat();
+            heartbeatTimer = setInterval(function () {
+                saveProgress('heartbeat');
+            }, 30000);
+        }
+
+        function stopHeartbeat() {
+            if (heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
+        }
+
+        function bindTouchSeek() {
+            var wrapper = document.getElementById('player-wrapper');
+            if (!wrapper) {
+                return;
+            }
+
+            wrapper.addEventListener('touchstart', function (e) {
+                if (!e.touches || !e.touches[0]) {
+                    return;
+                }
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }, { passive: true });
+
+            wrapper.addEventListener('touchend', function (e) {
+                if (!player || !e.changedTouches || !e.changedTouches[0]) {
+                    return;
+                }
+
+                var deltaX = e.changedTouches[0].clientX - touchStartX;
+                var deltaY = e.changedTouches[0].clientY - touchStartY;
+
+                if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) {
+                    return;
+                }
+
+                var current = player.currentTime() || 0;
+                if (deltaX < 0) {
+                    player.currentTime(current + 10);
+                } else {
+                    player.currentTime(Math.max(0, current - 10));
+                }
+                saveProgress('seek');
+            }, { passive: true });
+        }
+
+        function bindFullscreenCompat() {
+            var wrapper = document.getElementById('player-wrapper');
+            if (!wrapper || !player) {
+                return;
+            }
+
+            function resolvePlayerFullscreen(event) {
+                if (event && event.detail && typeof event.detail.isFullscreen === 'boolean') {
+                    return event.detail.isFullscreen;
+                }
+                if (player && typeof player.isFullscreen === 'function') {
+                    return !!player.isFullscreen();
+                }
+                return isFullscreenActive();
+            }
+
+            function requestFullscreen() {
+                var currentFullscreen = resolvePlayerFullscreen();
+                if (currentFullscreen) {
+                    return;
+                }
+                console.log('[PlayerDebug] requestFullscreen', {
+                    hasPlayerRequestFullscreen: !!(player && player.requestFullscreen),
+                    hasWrapperRequestFullscreen: !!wrapper.requestFullscreen,
+                    hasWebkitRequestFullscreen: !!wrapper.webkitRequestFullscreen
+                });
+                if (player && typeof player.requestFullscreen === 'function') {
+                    player.requestFullscreen();
+                } else if (wrapper.requestFullscreen) {
+                    wrapper.requestFullscreen();
+                } else if (wrapper.webkitRequestFullscreen) {
+                    wrapper.webkitRequestFullscreen();
+                }
+            }
+
+            function handleFullscreenChange(event, source) {
+                var fullscreen = resolvePlayerFullscreen(event);
+                // 延迟执行以确保全屏动画完成，尺寸计算准确
+                setTimeout(function() {
+                    var size = setPlayerSize(source || 'fullscreenchange', fullscreen);
+                    saveProgress('fullscreen_change');
+                    
+                    // 调试：检查视频元素样式
+                    if (fullscreen) {
+                        var wrapper = document.getElementById('player-wrapper');
+                        var video = wrapper ? wrapper.querySelector('video') : null;
+                        if (video) {
+                            var computed = window.getComputedStyle(video);
+                            console.log('[Fullscreen Debug] Video computed style:', {
+                                width: computed.width,
+                                height: computed.height,
+                                objectFit: computed.objectFit,
+                                maxWidth: computed.maxWidth,
+                                maxHeight: computed.maxHeight
+                            });
+                        }
+                    }
+                    
+                    console.log(fullscreen ? '[Fullscreen] 进入全屏模式' : '[Fullscreen] 退出全屏模式', {
+                        source: source,
+                        size: size,
+                        event: event
+                    });
+                    logPlayerState(source || 'fullscreenchange', {
+                        targetSize: size,
+                        event: event
+                    });
+                }, fullscreen ? 300 : 0);
+            }
+
+            if (typeof player.on === 'function') {
+                player.on('fullscreenchange', function (event) {
+                    handleFullscreenChange(event, 'player.fullscreenchange');
+                });
+            }
+
+            ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(function (eventName) {
+                document.addEventListener(eventName, function (event) {
+                    console.log('[PlayerDebug] document fullscreen event', {
+                        eventName: eventName,
+                        documentFullscreen: isFullscreenActive(),
+                        playerFullscreen: !!(player && player.isFullscreen && player.isFullscreen())
+                    });
+                    setTimeout(function () {
+                        handleFullscreenChange(event, 'document.' + eventName);
+                    }, 0);
+                });
+            });
+
+            var videoEl = document.getElementById('player-container_html5_api') || wrapper.querySelector('video');
+            if (videoEl) {
+                videoEl.addEventListener('webkitbeginfullscreen', function (event) {
+                    saveProgress('ios_begin_fullscreen');
+                    console.log('[PlayerDebug] ios webkitbeginfullscreen', event);
+                    setTimeout(function () {
+                        handleFullscreenChange(event, 'video.webkitbeginfullscreen');
+                    }, 0);
+                });
+                videoEl.addEventListener('webkitendfullscreen', function (event) {
+                    saveProgress('ios_end_fullscreen');
+                    console.log('[PlayerDebug] ios webkitendfullscreen', event);
+                    setTimeout(function () {
+                        handleFullscreenChange(event, 'video.webkitendfullscreen');
+                    }, 0);
+                });
+            }
+
+            window.addEventListener('orientationchange', function () {
+                setTimeout(function () {
+                    var isLandscape = window.matchMedia('(orientation: landscape)').matches;
+                    var currentFullscreen = resolvePlayerFullscreen();
+                    console.log('[PlayerDebug] orientationchange', {
+                        isLandscape: isLandscape,
+                        fullscreen: currentFullscreen
+                    });
+                    if (isLandscape && !currentFullscreen) {
+                        requestFullscreen();
+                    }
+                }, 100);
+            });
+        }
+
+        function initPlayer(psign) {
+            // 先计算播放器尺寸
+            var playerSize = calculatePlayerSize();
+
+            // 设置容器尺寸
+            setPlayerSize('before-player-init', false);
+
+            console.log('[PlayerDebug] initPlayer config', {
+                fileId: fileId,
+                chapterId: chapterId,
+                playerSize: playerSize,
+                videoWidth: videoWidth,
+                videoHeight: videoHeight
+            });
+
+            // 初始化 TCPlayer，使用计算好的尺寸
+            player = TCPlayer('player-container', {
+                fileID: fileId,
+                appID: tencentConfig.app_id || '',
+                psign: psign,
+                licenseUrl: tencentConfig.license_url || '',
+                licenseKey: tencentConfig.license_key || '',
+                width: playerSize.width,
+                height: playerSize.height,
+                autoplay: false,
+                preload: 'auto',
+                fakeFullscreen: false,
+                hlsConfig: {
+                    debug: false,
+                    enableWorker: true
+                },
+                // 全屏相关配置
+                controlBar: {
+                    playToggle: true,
+                    progressControl: true,
+                    currentTimeDisplay: true,
+                    durationDisplay: true,
+                    timeDivider: true,
+                    playbackRateMenuButton: true,
+                    volumePanel: true,
+                    fullscreenToggle: true,
+                    fullscreenRotate: true  // 全屏时自动横屏旋转
+                }
+            });
+
+            console.log('[PlayerDebug] player api support', {
+                hasRequestFullscreen: !!(player && player.requestFullscreen),
+                hasExitFullscreen: !!(player && player.exitFullscreen),
+                hasIsFullscreen: !!(player && player.isFullscreen),
+                hasWidth: !!(player && player.width),
+                hasHeight: !!(player && player.height),
+                hasDimension: !!(player && player.dimension)
+            });
+
+            setTimeout(function () {
+                setPlayerSize('after-player-init', false);
+            }, 0);
+
+            // 监听窗口大小变化，动态调整播放器尺寸
+            var resizeTimer;
+            window.addEventListener('resize', function () {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function () {
+                    if (player) {
+                        var isFullscreen = isFullscreenActive();
+                        var size = setPlayerSize('window.resize');
+                        // 全屏时只记录日志，不主动设置尺寸（让 TCPlayer 自动处理）
+                        if (!isFullscreen) {
+                            console.log('Player resized to:', size.width + 'x' + size.height);
+                        }
+                    }
+                }, 250);
+            });
+
+            player.on('loadedmetadata', function () {
+                setPlayerSize('player.loadedmetadata');
+                logPlayerState('player.loadedmetadata');
+            });
+
+            player.on('play', function () {
+                logPlayerState('player.play');
+                startHeartbeat();
+            });
+
+            player.on('pause', function () {
+                logPlayerState('player.pause');
+                saveProgress('pause');
+            });
+
+            player.on('ended', function () {
+                logPlayerState('player.ended');
+                saveProgress('ended', true);
+                stopHeartbeat();
+            });
+
+            player.on('error', function (event) {
+                console.error('[PlayerDebug] player.error', event);
+                logPlayerState('player.error', {
+                    event: event
+                });
+            });
+
+            player.on('timeupdate', function () {
+                if (player.duration() > 0) {
+                    var progress = player.currentTime() / player.duration() * 100;
+                    if (Math.abs(progress - lastProgress) >= 5) {
+                        lastProgress = progress;
+                        saveProgress('timeupdate');
+                    }
+                }
+            });
+
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) {
+                    saveProgress('visibility_hidden', true);
+                }
+            });
+
+            window.addEventListener('beforeunload', function () {
+                saveProgress('unload', true);
+            });
+
+            bindTouchSeek();
+            bindFullscreenCompat();
+        }
+    })();
+</script>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 播放器容器样式 - 尺寸由JS根据视频比例动态计算 */
+.player-wrapper {
+    position: relative;
+    background: #000;
+    border-radius: 16px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+
+.player-wrapper video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;  /* 保持视频比例，填满容器 */
+}
+
+html.player-fullscreen-active,
+body.player-fullscreen-active {
+    overflow: hidden !important;
+    background: #000;
+}
+
+/* 全屏模式样式 */
+.play-container.player-mode-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.play-container.player-mode-fullscreen .play-header,
+.play-container.player-mode-fullscreen .playlist,
+.play-container:has(.player-wrapper:fullscreen) .playlist,
+.play-container:has(.player-wrapper:-webkit-full-screen) .playlist {
+    display: none;
+}
+
+.play-container.player-mode-fullscreen .player-wrapper,
+.player-wrapper.is-player-fullscreen,
+.player-wrapper:fullscreen,
+.player-wrapper:-webkit-full-screen,
+.player-wrapper:-moz-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.play-container.player-mode-fullscreen #player-container,
+.play-container.player-mode-fullscreen .tcplayer,
+.play-container.player-mode-fullscreen .video-js,
+.play-container.player-mode-fullscreen .vjs-tech,
+.play-container.player-mode-fullscreen .vjs-poster,
+.play-container.player-mode-fullscreen #player-container_html5_api,
+.play-container.player-mode-fullscreen video,
+.play-container.player-mode-fullscreen canvas,
+.player-wrapper.is-player-fullscreen #player-container,
+.player-wrapper.is-player-fullscreen .tcplayer,
+.player-wrapper.is-player-fullscreen .video-js,
+.player-wrapper.is-player-fullscreen .vjs-tech,
+.player-wrapper.is-player-fullscreen .vjs-poster,
+.player-wrapper.is-player-fullscreen #player-container_html5_api,
+.player-wrapper.is-player-fullscreen video,
+.player-wrapper.is-player-fullscreen canvas,
+.player-wrapper:fullscreen #player-container,
+.player-wrapper:fullscreen .tcplayer,
+.player-wrapper:fullscreen .video-js,
+.player-wrapper:fullscreen .vjs-tech,
+.player-wrapper:fullscreen .vjs-poster,
+.player-wrapper:fullscreen #player-container_html5_api,
+.player-wrapper:fullscreen video,
+.player-wrapper:fullscreen canvas,
+.player-wrapper:-webkit-full-screen #player-container,
+.player-wrapper:-webkit-full-screen .tcplayer,
+.player-wrapper:-webkit-full-screen .video-js,
+.player-wrapper:-webkit-full-screen .vjs-tech,
+.player-wrapper:-webkit-full-screen .vjs-poster,
+.player-wrapper:-webkit-full-screen #player-container_html5_api,
+.player-wrapper:-webkit-full-screen video,
+.player-wrapper:-webkit-full-screen canvas,
+.player-wrapper:-moz-full-screen #player-container,
+.player-wrapper:-moz-full-screen .tcplayer,
+.player-wrapper:-moz-full-screen .video-js,
+.player-wrapper:-moz-full-screen .vjs-tech,
+.player-wrapper:-moz-full-screen .vjs-poster,
+.player-wrapper:-moz-full-screen #player-container_html5_api,
+.player-wrapper:-moz-full-screen video,
+.player-wrapper:-moz-full-screen canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* TCPlayer生成的视频元素样式 */
+#player-container,
+#player-container video,
+#player-container canvas,
+#player-container_html5_api,
+.player-wrapper .tcplayer,
+.player-wrapper .video-js,
+.player-wrapper .vjs-tech,
+.player-wrapper .vjs-poster {
+    width: 100%;
+    height: 100%;
+}
+
+#player-container video,
+#player-container_html5_api,
+.player-wrapper .vjs-tech {
+    object-fit: contain !important;
+    object-position: center center !important;
+}
+
+/* 全屏时视频填充模式 - 使用 cover 填满屏幕 */
+.play-container.player-mode-fullscreen #player-container video,
+.play-container.player-mode-fullscreen #player-container_html5_api,
+.play-container.player-mode-fullscreen .vjs-tech,
+.play-container.player-mode-fullscreen video,
+.player-wrapper.is-player-fullscreen #player-container video,
+.player-wrapper.is-player-fullscreen #player-container_html5_api,
+.player-wrapper.is-player-fullscreen .vjs-tech,
+.player-wrapper.is-player-fullscreen video,
+.player-wrapper:fullscreen #player-container video,
+.player-wrapper:fullscreen #player-container_html5_api,
+.player-wrapper:fullscreen .vjs-tech,
+.player-wrapper:fullscreen video,
+.player-wrapper:-webkit-full-screen #player-container video,
+.player-wrapper:-webkit-full-screen #player-container_html5_api,
+.player-wrapper:-webkit-full-screen .vjs-tech,
+.player-wrapper:-webkit-full-screen video,
+.player-wrapper:-moz-full-screen #player-container video,
+.player-wrapper:-moz-full-screen #player-container_html5_api,
+.player-wrapper:-moz-full-screen .vjs-tech,
+.player-wrapper:-moz-full-screen video,
+/* 针对 TCPlayer v5 的选择器 */
+.player-wrapper.is-player-fullscreen .tcp-video,
+.player-wrapper:fullscreen .tcp-video,
+.player-wrapper:-webkit-full-screen .tcp-video,
+.player-wrapper.is-player-fullscreen .tcplayer video,
+.player-wrapper:fullscreen .tcplayer video,
+.player-wrapper:-webkit-full-screen .tcplayer video {
+    object-fit: cover !important;
+    object-position: center center !important;
+}
+
+/* 兜底规则：全屏状态下的所有视频元素 */
+:fullscreen video,
+:-webkit-full-screen video,
+:-moz-full-screen video,
+.player-fullscreen-active video {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: cover !important;
+}
+
+.no-video {
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1E1B4B 0%, #312E81 100%);
+}
+
+/* TCPlayer 控件样式优化 */
+.tcp-skin-default .tcp-control-bar {
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent) !important;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .play-container {
+        padding: 0.75rem;
+    }
+    
+    .player-wrapper {
+        border-radius: 12px;
+    }
+    
+    .playlist {
+        margin-top: 1rem;
+    }
+    
+    .playlist-items {
+        max-height: 300px;
+    }
+    
+    .playlist-item {
+        padding: 0.625rem 0.75rem;
+    }
+    
+    /* 隐藏某些TCPlayer控件在移动端 */
+    .tcp-skin-default .tcp-setting-menu {
+        display: none !important;
+    }
+}
+
+/* 播放列表滚动条样式 */
+.playlist-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+.playlist-items::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.playlist-items::-webkit-scrollbar-thumb {
+    background: #c4b5fd;
+    border-radius: 3px;
+}
+
+.playlist-items::-webkit-scrollbar-thumb:hover {
+    background: #8b5cf6;
+}
+</style>
+{% endblock %}

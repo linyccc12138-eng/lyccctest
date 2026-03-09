@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#6B4E7C">
+    <title>事件管理 - {{ site_name }}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        .filter-section {
+            padding: var(--space-md);
+            background: linear-gradient(135deg, var(--mucha-purple-dark) 0%, #4A3A5A 100%);
+        }
+        
+        .filter-tabs {
+            display: flex;
+            gap: var(--space-sm);
+            overflow-x: auto;
+        }
+        
+        .filter-tabs::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .filter-tab {
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-full);
+            font-size: 13px;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            text-decoration: none;
+        }
+        
+        .filter-tab.active {
+            background: white;
+            color: var(--mucha-purple-dark);
+        }
+        
+        .event-list {
+            padding: var(--space-md);
+        }
+        
+        .event-item {
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-md);
+            box-shadow: var(--shadow-soft);
+        }
+        
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-sm);
+        }
+        
+        .event-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: var(--radius-full);
+            background: var(--mucha-purple-light);
+            color: var(--mucha-purple-dark);
+        }
+        
+        .event-type.consumed {
+            background: var(--mucha-mint-light);
+            color: #4A8B6F;
+        }
+        
+        .event-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .event-content {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        
+        .event-file {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: var(--space-sm);
+            padding-top: var(--space-sm);
+            border-top: 1px solid var(--border-color);
+            word-break: break-all;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-xl);
+            text-align: center;
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            color: var(--mucha-purple-light);
+            margin-bottom: var(--space-md);
+        }
+        
+        .action-btn {
+            position: fixed;
+            bottom: calc(var(--space-xl) + env(safe-area-inset-bottom, 0));
+            left: 50%;
+            transform: translateX(-50%);
+            padding: var(--space-sm) var(--space-lg);
+            background: var(--mucha-purple);
+            color: white;
+            border: none;
+            border-radius: var(--radius-full);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            box-shadow: var(--shadow-card);
+        }
+    </style>
+</head>
+<body>
+    <div class="mucha-bg"></div>
+    
+    <nav class="mucha-navbar" style="background: transparent; border: none;">
+        <a href="{{ url_for('mobile.mobile_admin_dashboard') }}" class="nav-back" style="background: rgba(255,255,255,0.2); color: white;">
+            <i class="ph ph-arrow-left"></i>
+        </a>
+        <span class="nav-title" style="color: white;">
+            <i class="ph ph-calendar-check"></i>
+            事件管理
+        </span>
+        <div style="width: 40px;"></div>
+    </nav>
+    
+    <div class="mucha-content no-navbar no-bottom-nav">
+        <div class="filter-section">
+            <div class="filter-tabs">
+                <a href="{{ url_for('mobile.mobile_admin_events') }}" class="filter-tab {% if not status %}active{% endif %}">全部</a>
+                <a href="{{ url_for('mobile.mobile_admin_events', status='pending') }}" class="filter-tab {% if status == 'pending' %}active{% endif %}">待处理</a>
+                <a href="{{ url_for('mobile.mobile_admin_events', status='consumed') }}" class="filter-tab {% if status == 'consumed' %}active{% endif %}">已消费</a>
+            </div>
+        </div>
+        
+        <div class="event-list">
+            {% if events %}
+                {% for event in events %}
+                <div class="event-item">
+                    <div class="event-header">
+                        <span class="event-type {% if event.is_consumed %}consumed{% endif %}">
+                            {% if event.is_consumed %}
+                            <i class="ph ph-check"></i> 已消费
+                            {% else %}
+                            <i class="ph ph-clock"></i> 待处理
+                            {% endif %}
+                        </span>
+                        <span class="event-time">{{ event.created_at.strftime('%m-%d %H:%M') }}</span>
+                    </div>
+                    <div class="event-content">{{ event.event_type }}</div>
+                    {% if event.file_id %}
+                    <div class="event-file">FileID: {{ event.file_id }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="ph ph-calendar-blank"></i>
+                    <h3>暂无事件</h3>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

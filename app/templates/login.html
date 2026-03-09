@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+
+{% block title %}用户登录 - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <!-- 魔法装饰星星 -->
+    <div class="magic-stars">
+        <span class="star" style="top: 10%; left: 15%; animation-delay: 0s;">✦</span>
+        <span class="star" style="top: 20%; right: 20%; animation-delay: 0.5s;">✧</span>
+        <span class="star" style="top: 60%; left: 10%; animation-delay: 1s;">✦</span>
+        <span class="star" style="bottom: 20%; right: 15%; animation-delay: 1.5s;">✧</span>
+        <span class="star" style="bottom: 30%; left: 25%; animation-delay: 2s;">✦</span>
+    </div>
+    
+    <div class="login-box">
+        <!-- 右上角帽子装饰 -->
+        <img src="{{ url_for('static', filename='images/hat.png') }}" alt="hat" class="login-hat">
+        <h1 class="login-title">{{ site_name }}</h1>
+        <p class="login-subtitle">开启你的奇妙旅行 ✨</p>
+        
+        <form method="POST" action="{{ url_for('auth.login') }}" class="login-form" id="loginForm" novalidate>
+            <!-- 安全：CSRF 保护令牌 -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="form-group">
+                <label for="phone" class="flex items-center gap-2">
+                    <i class="ph ph-device-mobile text-magic-500"></i>
+                    手机号
+                </label>
+                <input type="tel" id="phone" name="phone" class="form-control" 
+                       placeholder="请输入11位手机号" required autofocus
+nputmode="numeric" pattern="[0-9]*" autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password" class="flex items-center gap-2">
+                    <i class="ph ph-lock-key text-magic-500"></i>
+                    密码
+                </label>
+                <div class="relative">
+                    <input type="password" id="password" name="password" class="form-control pr-10" 
+                           placeholder="请输入密码" required autocomplete="current-password">
+                    <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-magic-500 transition-colors p-1"
+                            onclick="togglePassword()" id="togglePasswordBtn">
+                        <i class="ph ph-eye text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block flex items-center justify-center gap-2" id="submitBtn">
+                <i class="ph ph-sign-in"></i>
+                <span>登录</span>
+            </button>
+        </form>
+        
+        <div class="login-links flex flex-col items-center gap-3 mt-6">
+            <a href="{{ url_for('auth.admin_login') }}" class="flex items-center gap-2 text-magic-600 hover:text-magic-700 transition-colors">
+                <i class="ph ph-shield-check"></i>
+                管理员登录
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 右上角帽子装饰 */
+.login-hat {
+    position: absolute;
+    top: -40px;
+    right: -60px;
+    width: 120px;
+    height: auto;
+    z-index: 10;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
+    transform: rotate(15deg);
+}
+
+@media (max-width: 480px) {
+    .login-hat {
+        width: 80px;
+        top: -30px;
+        right: -20px;
+    }
+}
+
+.magic-stars {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.star {
+    position: absolute;
+    font-size: 2rem;
+    color: rgba(255, 255, 255, 0.3);
+    animation: twinkle 3s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.3; transform: scale(1) rotate(0deg); }
+    50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+}
+
+@media (max-width: 480px) {
+    .login-container {
+        padding: 1rem;
+    }
+    
+    .login-box {
+        padding: 2rem 1.5rem;
+    }
+    
+    .star {
+        font-size: 1.5rem;
+    }
+}
+</style>
+
+<script>
+(function() {
+    // 安卓端登录修复：确保表单能正常提交
+    var form = document.getElementById('loginForm');
+    var phoneInput = document.getElementById('phone');
+    var passwordInput = document.getElementById('password');
+    var submitBtn = document.getElementById('submitBtn');
+    
+    // 强制数字输入
+    phoneInput.addEventListener('input', function(e) {
+        this.value = this.value.replace(/\D/g, '').slice(0, 11);
+    });
+    
+    // 处理表单提交
+    form.addEventListener('submit', function(e) {
+        // 前端简单验证
+        var phone = phoneInput.value.trim();
+        var password = passwordInput.value;
+        
+        if (!phone || phone.length < 11) {
+            e.preventDefault();
+            showToast('请输入正确的11位手机号', 'warning');
+            phoneInput.focus();
+            return false;
+        }
+        
+        if (!password) {
+            e.preventDefault();
+            showToast('请输入密码', 'warning');
+            passwordInput.focus();
+            return false;
+        }
+        
+        // 禁用按钮防止重复提交
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i><span>登录中...</span>';
+        
+        // 允许表单正常提交
+        return true;
+    });
+    
+    // 修复安卓软键盘收起后页面不恢复的问题
+    phoneInput.addEventListener('blur', function() {
+        setTimeout(function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
+    });
+    
+    passwordInput.addEventListener('blur', function() {
+        setTimeout(function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
+    });
+    
+    // 密码可见性切换
+    window.togglePassword = function() {
+        var input = document.getElementById('password');
+        var btn = document.getElementById('togglePasswordBtn');
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.innerHTML = '<i class="ph ph-eye-slash text-xl"></i>';
+        } else {
+            input.type = 'password';
+            btn.innerHTML = '<i class="ph ph-eye text-xl"></i>';
+        }
+    };
+    
+    // 简单的Toast提示
+    function showToast(message, type) {
+        var toast = document.createElement('div');
+        toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-lg z-50 text-white font-medium animate-fade-in';
+        toast.style.background = type === 'warning' ? '#F59E0B' : '#8B5CF6';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(function() {
+                toast.remove();
+            }, 300);
+        }, 2000);
+    }
+})();
+</script>
+{% endblock %}

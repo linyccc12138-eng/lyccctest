@@ -1,0 +1,806 @@
+/* ==================== 阿尔丰斯·穆夏风格 - 移动端样式 ==================== */
+/* 主题：新艺术运动、优雅花卉、柔和色彩 */
+/* 配色：淡紫色、金色、薄荷绿、淡粉色、米色 */
+
+/* ==================== CSS变量定义 ==================== */
+:root {
+    /* 穆夏风格主色调 */
+    --mucha-gold: #D4AF37;
+    --mucha-gold-light: #F4E4BC;
+    --mucha-purple: #9B7CB6;
+    --mucha-purple-light: #D4C4E0;
+    --mucha-purple-dark: #6B4E7C;
+    --mucha-mint: #A8D5BA;
+    --mucha-mint-light: #CFE8D9;
+    --mucha-pink: #E8B4B8;
+    --mucha-pink-light: #F5D5D7;
+    --mucha-cream: #FAF5EF;
+    --mucha-ivory: #FFFEF5;
+    
+    /* 功能色 */
+    --success: #7CB9A8;
+    --warning: #E8C547;
+    --danger: #D47676;
+    --info: #7CA8C9;
+    
+    /* 文字颜色 */
+    --text-primary: #4A3F4F;
+    --text-secondary: #7A6F7F;
+    --text-muted: #A99FA8;
+    --text-light: #FFFFFF;
+    
+    /* 背景色 */
+    --bg-primary: var(--mucha-cream);
+    --bg-secondary: var(--mucha-ivory);
+    --bg-card: rgba(255, 255, 255, 0.85);
+    
+    /* 边框和阴影 */
+    --border-color: rgba(155, 124, 182, 0.2);
+    --shadow-soft: 0 4px 20px rgba(107, 78, 124, 0.1);
+    --shadow-card: 0 8px 32px rgba(107, 78, 124, 0.15);
+    
+    /* 圆角 */
+    --radius-sm: 8px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-xl: 32px;
+    --radius-full: 9999px;
+    
+    /* 间距 */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    
+    /* 底部导航高度 */
+    --bottom-nav-height: 70px;
+    --top-nav-height: 56px;
+    
+    /* 字体 */
+    --font-display: 'Playfair Display', 'Noto Serif SC', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+}
+
+/* ==================== 基础重置 ==================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* ==================== 穆夏风格背景 ==================== */
+.mucha-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    background: linear-gradient(180deg, 
+        var(--mucha-cream) 0%, 
+        var(--mucha-purple-light) 30%,
+        var(--mucha-mint-light) 70%,
+        var(--mucha-pink-light) 100%);
+}
+
+.mucha-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+        radial-gradient(ellipse at 20% 10%, rgba(212, 175, 55, 0.15) 0%, transparent 40%),
+        radial-gradient(ellipse at 80% 30%, rgba(155, 124, 182, 0.12) 0%, transparent 35%),
+        radial-gradient(ellipse at 40% 70%, rgba(168, 213, 186, 0.1) 0%, transparent 45%),
+        radial-gradient(ellipse at 90% 90%, rgba(232, 180, 184, 0.12) 0%, transparent 35%);
+}
+
+/* ==================== 装饰元素 ==================== */
+.mucha-corner {
+    position: fixed;
+    width: 120px;
+    height: 120px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.6;
+}
+
+.mucha-corner.top-left {
+    top: 0;
+    left: 0;
+}
+
+.mucha-corner.top-right {
+    top: 0;
+    right: 0;
+    transform: rotate(90deg);
+}
+
+.mucha-corner.bottom-left {
+    bottom: 0;
+    left: 0;
+    transform: rotate(-90deg);
+}
+
+.mucha-corner.bottom-right {
+    bottom: 0;
+    right: 0;
+    transform: rotate(180deg);
+}
+
+/* ==================== 顶部导航栏 ==================== */
+.mucha-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--top-nav-height);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-md);
+    z-index: 100;
+}
+
+.mucha-navbar .nav-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--mucha-purple-dark);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.mucha-navbar .nav-back {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    background: var(--mucha-purple-light);
+    color: var(--mucha-purple-dark);
+    font-size: 20px;
+    transition: all 0.3s ease;
+}
+
+.mucha-navbar .nav-back:active {
+    transform: scale(0.95);
+    background: var(--mucha-purple);
+    color: white;
+}
+
+/* ==================== 底部导航栏 ==================== */
+.mucha-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--bottom-nav-height);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    z-index: 100;
+}
+
+.mucha-bottom-nav .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: var(--space-sm) var(--space-md);
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 11px;
+    transition: all 0.3s ease;
+    min-width: 60px;
+}
+
+.mucha-bottom-nav .nav-item i {
+    font-size: 24px;
+    transition: all 0.3s ease;
+}
+
+.mucha-bottom-nav .nav-item.active {
+    color: var(--mucha-purple-dark);
+}
+
+.mucha-bottom-nav .nav-item.active i {
+    color: var(--mucha-gold);
+    transform: translateY(-2px);
+}
+
+/* ==================== 主内容区域 ==================== */
+.mucha-content {
+    padding-top: var(--top-nav-height);
+    padding-bottom: calc(var(--bottom-nav-height) + var(--space-lg));
+    min-height: 100vh;
+}
+
+.mucha-content.no-navbar {
+    padding-top: 0;
+}
+
+.mucha-content.no-bottom-nav {
+    padding-bottom: var(--space-lg);
+}
+
+/* ==================== 卡片样式 ==================== */
+.mucha-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    margin: var(--space-md);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.mucha-card .card-header {
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.mucha-card .card-header h3 {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--mucha-purple-dark);
+}
+
+.mucha-card .card-body {
+    padding: var(--space-lg);
+}
+
+/* ==================== 表单样式 ==================== */
+.mucha-form {
+    padding: var(--space-md);
+}
+
+.mucha-form .form-group {
+    margin-bottom: var(--space-lg);
+}
+
+.mucha-form .form-label {
+    display: block;
+    margin-bottom: var(--space-sm);
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.mucha-form .form-input {
+    width: 100%;
+    padding: var(--space-md);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+.mucha-form .form-input:focus {
+    outline: none;
+    border-color: var(--mucha-purple);
+    box-shadow: 0 0 0 4px rgba(155, 124, 182, 0.15);
+}
+
+.mucha-form .form-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* ==================== 按钮样式 ==================== */
+.mucha-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-xl);
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 48px;
+}
+
+.mucha-btn:active {
+    transform: scale(0.98);
+}
+
+.mucha-btn-primary {
+    background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(107, 78, 124, 0.3);
+}
+
+.mucha-btn-primary:active {
+    box-shadow: 0 2px 8px rgba(107, 78, 124, 0.2);
+}
+
+.mucha-btn-secondary {
+    background: var(--mucha-gold-light);
+    color: var(--mucha-purple-dark);
+    border: 2px solid var(--mucha-gold);
+}
+
+.mucha-btn-outline {
+    background: transparent;
+    color: var(--mucha-purple-dark);
+    border: 2px solid var(--mucha-purple);
+}
+
+.mucha-btn-block {
+    width: 100%;
+}
+
+/* ==================== 课程卡片 ==================== */
+.course-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+    padding: var(--space-md);
+}
+
+.course-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.course-card:active {
+    transform: scale(0.98);
+}
+
+.course-card .card-thumb {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+}
+
+.course-card .card-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.course-card .card-thumb .lock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+.course-card .card-info {
+    padding: var(--space-md);
+}
+
+.course-card .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.course-card .card-meta {
+    margin-top: var(--space-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* ==================== 徽章样式 ==================== */
+.mucha-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+}
+
+.mucha-badge-success {
+    background: var(--mucha-mint-light);
+    color: #4A8B6F;
+}
+
+.mucha-badge-warning {
+    background: #FFF3CD;
+    color: #856404;
+}
+
+.mucha-badge-danger {
+    background: #F8D7DA;
+    color: #721C24;
+}
+
+/* ==================== 列表样式 ==================== */
+.mucha-list {
+    padding: var(--space-md);
+}
+
+.mucha-list-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+    box-shadow: var(--shadow-soft);
+}
+
+.mucha-list-item .item-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    background: var(--mucha-purple-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mucha-purple-dark);
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.mucha-list-item .item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.mucha-list-item .item-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mucha-list-item .item-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* ==================== 播放器样式 ==================== */
+.player-container {
+    background: #000;
+    position: relative;
+    width: 100%;
+}
+
+.player-container video {
+    width: 100%;
+    display: block;
+}
+
+/* 全屏时视频样式覆盖 - 确保视频填满容器 */
+:fullscreen .player-container video,
+:-webkit-full-screen .player-container video,
+.player-container:fullscreen video,
+.player-container:-webkit-full-screen video {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: cover !important;
+}
+
+/* ==================== 章节列表 ==================== */
+.chapter-list {
+    padding: var(--space-md);
+}
+
+.chapter-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+    box-shadow: var(--shadow-soft);
+}
+
+.chapter-item .chapter-number {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.chapter-item .chapter-title {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.chapter-item .chapter-play {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: var(--mucha-gold-light);
+    color: var(--mucha-purple-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+/* ==================== 标签页 ==================== */
+.mucha-tabs {
+    display: flex;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mucha-tabs .tab-item {
+    padding: var(--space-sm) var(--space-md);
+    font-size: 14px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.mucha-tabs .tab-item.active {
+    color: var(--mucha-purple-dark);
+    border-bottom-color: var(--mucha-gold);
+    font-weight: 600;
+}
+
+/* ==================== 进度条 ==================== */
+.mucha-progress {
+    height: 6px;
+    background: var(--mucha-purple-light);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.mucha-progress .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--mucha-purple) 0%, var(--mucha-gold) 100%);
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+}
+
+/* ==================== 空状态 ==================== */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xl);
+    text-align: center;
+}
+
+.empty-state .empty-icon {
+    font-size: 64px;
+    margin-bottom: var(--space-md);
+    opacity: 0.5;
+}
+
+.empty-state .empty-title {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.empty-state .empty-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* ==================== 动画 ==================== */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slide-up {
+    animation: slideUp 0.5s ease-out;
+}
+
+/* ==================== 加载动画 ==================== */
+.loading-spinner {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--mucha-purple-light);
+    border-top-color: var(--mucha-purple);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ==================== 模态框 ==================== */
+.mucha-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md);
+}
+
+.mucha-modal.show {
+    display: flex;
+}
+
+.mucha-modal .modal-content {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s ease-out;
+}
+
+/* ==================== 统计卡片 ==================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+    padding: var(--space-md);
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    text-align: center;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border-color);
+}
+
+.stat-card .stat-value {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-card .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: var(--space-xs);
+}
+
+/* ==================== 搜索栏 ==================== */
+.search-bar {
+    padding: var(--space-md);
+}
+
+.search-bar .search-input-wrapper {
+    position: relative;
+}
+
+.search-bar .search-input {
+    width: 100%;
+    padding: var(--space-md) var(--space-md) var(--space-md) 44px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-full);
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.search-bar .search-icon {
+    position: absolute;
+    left: var(--space-md);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 18px;
+}
+
+/* ==================== 安全区域适配 ==================== */
+@supports (padding: max(0px)) {
+    .mucha-content {
+        padding-left: max(var(--space-md), env(safe-area-inset-left));
+        padding-right: max(var(--space-md), env(safe-area-inset-right));
+    }
+    
+    .mucha-bottom-nav {
+        padding-bottom: max(env(safe-area-inset-bottom), 0px);
+    }
+}
+
+/* ==================== 隐藏滚动条 ==================== */
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}

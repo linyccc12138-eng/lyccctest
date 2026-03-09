@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}全部课程 - {{ site_name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar md:flex hidden">
+    <div class="navbar-brand">
+        <a href="{{ url_for('user.dashboard') }}">{{ site_name }}</a>
+    </div>
+    <div class="navbar-menu">
+        <a href="{{ url_for('user.dashboard') }}" class="nav-link">
+            <i class="ph ph-house mr-1"></i>首页
+        </a>
+        <a href="{{ url_for('user.my_courses') }}" class="nav-link">
+            <i class="ph ph-book-bookmark mr-1"></i>我的课程
+        </a>
+        <a href="{{ url_for('user.history') }}" class="nav-link">
+            <i class="ph ph-clock-counter-clockwise mr-1"></i>播放历史
+        </a>
+        <a href="{{ url_for('course.list_courses') }}" class="nav-link active">
+            <i class="ph ph-books mr-1"></i>全部课程
+        </a>
+        <a href="{{ url_for('user.change_password') }}" class="nav-link">
+            <i class="ph ph-key mr-1"></i>修改密码
+        </a>
+        <a href="{{ url_for('auth.logout') }}" class="nav-link">
+            <i class="ph ph-sign-out mr-1"></i>退出
+        </a>
+    </div>
+</nav>
+
+<!-- 移动端顶部简化导航 -->
+<nav class="md:hidden navbar">
+    <div class="navbar-brand flex items-center gap-2">
+        <a href="{{ url_for('user.dashboard') }}" class="flex items-center gap-2">
+            <i class="ph ph-arrow-left text-xl"></i>
+            <span>全部课程</span>
+        </a>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- 页面标题 -->
+    <div class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <i class="ph ph-books text-magic-500"></i>
+            全部课程
+        </h1>
+        <p class="text-gray-600 mt-1">探索神奇的魔法知识 📚</p>
+    </div>
+    
+    {% if courses %}
+    <div class="course-grid">
+        {% for course in courses %}
+        <div class="course-card {% if course.id not in allowed_course_ids %}locked{% endif %} fade-in" 
+             style="animation-delay: {{ loop.index0 * 0.05 }}s;">
+            <a href="{{ url_for('course.detail', course_id=course.id) }}">
+                <div class="course-thumbnail">
+                    {% if course.thumbnail_url %}
+                    <img src="{{ course.thumbnail_url }}" alt="{{ course.title }}" loading="lazy">
+                    {% else %}
+                    <div class="thumbnail-placeholder">
+                        <span>{{ course.title[0] }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if course.id not in allowed_course_ids %}
+                    <div class="lock-badge">
+                        <i class="ph ph-lock-key"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="course-info">
+                    <h3>{{ course.title }}</h3>
+                    <p class="course-desc">{{ course.description or '暂无简介' }}</p>
+                    
+                    <div class="flex items-center gap-2 mt-3">
+                        {% if course.id not in allowed_course_ids %}
+                        <span class="badge badge-secondary flex items-center gap-1">
+                            <i class="ph ph-lock-key"></i>
+                            无权限
+                        </span>
+                        {% else %}
+                        <span class="badge badge-success flex items-center gap-1">
+                            <i class="ph ph-check-circle"></i>
+                            可学习
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>暂无课程</p>
+        <p class="text-sm mt-2">敬请期待更多精彩内容 ✨</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block mobile_nav %}
+<!-- 移动端底部导航栏 -->
+<nav class="mobile-bottom-nav md:hidden">
+    <div class="mobile-bottom-nav-items">
+        <a href="{{ url_for('user.dashboard') }}" class="mobile-nav-item">
+            <i class="ph ph-house text-2xl"></i>
+            <span>首页</span>
+        </a>
+        <a href="{{ url_for('user.my_courses') }}" class="mobile-nav-item">
+            <i class="ph ph-book-bookmark text-2xl"></i>
+            <span>我的课程</span>
+        </a>
+        <a href="{{ url_for('user.history') }}" class="mobile-nav-item">
+            <i class="ph ph-clock-counter-clockwise text-2xl"></i>
+            <span>播放历史</span>
+        </a>
+        <a href="{{ url_for('course.list_courses') }}" class="mobile-nav-item active">
+            <i class="ph ph-books text-2xl"></i>
+            <span>全部课程</span>
+        </a>
+        <a href="{{ url_for('user.change_password') }}" class="mobile-nav-item">
+            <i class="ph ph-key text-2xl"></i>
+            <span>修改密码</span>
+        </a>
+    </div>
+</nav>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+    opacity: 0;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 锁定课程样式优化 */
+.course-card.locked .course-thumbnail::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+}
+
+.lock-badge {
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+}
+</style>
+{% endblock %}

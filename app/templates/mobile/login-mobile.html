@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#9B7CB6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>用户登录 - {{ site_name }}</title>
+    
+    <!-- Google Fonts - Playfair Display for Mucha style -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    
+    <!-- Mobile Mucha CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        /* 登录页面特定样式 */
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('{{ url_for('static', filename='images/mucha-bg-1.webp') }}') center/cover no-repeat;
+            z-index: -1;
+        }
+        
+        .login-bg::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, 
+                rgba(250, 245, 239, 0.3) 0%, 
+                rgba(250, 245, 239, 0.7) 50%,
+                rgba(250, 245, 239, 0.95) 100%);
+        }
+        
+        .login-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: var(--space-lg);
+            padding-bottom: calc(var(--space-xl) * 2);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: var(--space-xl);
+        }
+        
+        .login-logo {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto var(--space-lg);
+            background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 30px rgba(107, 78, 124, 0.3);
+            position: relative;
+        }
+        
+        .login-logo::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 2px solid var(--mucha-gold);
+            border-radius: 50%;
+            opacity: 0.5;
+        }
+        
+        .login-logo i {
+            font-size: 48px;
+            color: white;
+        }
+        
+        .login-title {
+            font-family: var(--font-display);
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--mucha-purple-dark);
+            margin-bottom: var(--space-sm);
+        }
+        
+        .login-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .login-form-wrapper {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: var(--radius-xl);
+            padding: var(--space-xl);
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        
+        .login-form .form-group {
+            margin-bottom: var(--space-lg);
+        }
+        
+        .login-form .input-wrapper {
+            position: relative;
+        }
+        
+        .login-form .input-icon {
+            position: absolute;
+            left: var(--space-md);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--mucha-purple);
+            font-size: 20px;
+        }
+        
+        .login-form .form-input {
+            padding-left: 48px;
+            padding-right: 48px;
+            height: 52px;
+            border-radius: var(--radius-full);
+            border: 2px solid var(--mucha-purple-light);
+            background: white;
+        }
+        
+        .login-form .form-input:focus {
+            border-color: var(--mucha-purple);
+            box-shadow: 0 0 0 4px rgba(155, 124, 182, 0.2);
+        }
+        
+        .login-form .toggle-password {
+            position: absolute;
+            right: var(--space-md);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 20px;
+            background: none;
+            border: none;
+            padding: var(--space-sm);
+        }
+        
+        .login-form .toggle-password:active {
+            color: var(--mucha-purple);
+        }
+        
+        .login-btn {
+            width: 100%;
+            height: 52px;
+            border-radius: var(--radius-full);
+            font-size: 16px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+            box-shadow: 0 4px 20px rgba(107, 78, 124, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .login-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 10px rgba(107, 78, 124, 0.2);
+        }
+        
+        .login-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        .login-links {
+            margin-top: var(--space-lg);
+            text-align: center;
+        }
+        
+        .login-links a {
+            color: var(--mucha-purple-dark);
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+        
+        .login-links a:active {
+            color: var(--mucha-purple);
+        }
+        
+        .decorative-corner {
+            position: fixed;
+            width: 150px;
+            height: 150px;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.4;
+        }
+        
+        .decorative-corner.top-right {
+            top: -30px;
+            right: -30px;
+            transform: rotate(90deg);
+        }
+        
+        .decorative-corner.bottom-left {
+            bottom: -30px;
+            left: -30px;
+            transform: rotate(-90deg);
+        }
+        
+        /* 装饰性花朵 */
+        .floating-flower {
+            position: fixed;
+            font-size: 24px;
+            opacity: 0.3;
+            animation: float 4s ease-in-out infinite;
+            pointer-events: none;
+        }
+        
+        .floating-flower:nth-child(1) { top: 15%; left: 10%; animation-delay: 0s; }
+        .floating-flower:nth-child(2) { top: 25%; right: 15%; animation-delay: 1s; }
+        .floating-flower:nth-child(3) { top: 60%; left: 5%; animation-delay: 2s; }
+        .floating-flower:nth-child(4) { bottom: 30%; right: 10%; animation-delay: 3s; }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        
+        /* Toast提示 */
+        .toast {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: rgba(107, 78, 124, 0.95);
+            color: white;
+            padding: var(--space-md) var(--space-xl);
+            border-radius: var(--radius-full);
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 10000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .toast.warning {
+            background: rgba(212, 167, 38, 0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-page">
+        <!-- 背景 -->
+        <div class="login-bg"></div>
+        
+        <!-- 装饰性花朵 -->
+        <span class="floating-flower">🌸</span>
+        <span class="floating-flower">✿</span>
+        <span class="floating-flower">🌺</span>
+        <span class="floating-flower">❀</span>
+        
+        <!-- 装饰角 -->
+        <img src="{{ url_for('static', filename='images/mucha-corner.webp') }}" class="decorative-corner top-right" alt="">
+        <img src="{{ url_for('static', filename='images/mucha-corner.webp') }}" class="decorative-corner bottom-left" alt="">
+        
+        <!-- 登录内容 -->
+        <div class="login-content">
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="ph ph-book-open-text"></i>
+                </div>
+                <h1 class="login-title">{{ site_name }}</h1>
+                <p class="login-subtitle">开启你的奇妙旅行 ✨</p>
+            </div>
+            
+            <div class="login-form-wrapper">
+                <form class="login-form" id="loginForm" method="POST" action="{{ url_for('mobile.mobile_login') }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="form-group">
+                        <div class="input-wrapper">
+                            <i class="ph ph-device-mobile input-icon"></i>
+                            <input type="tel" 
+                                   id="phone" 
+                                   name="phone" 
+                                   class="form-input" 
+                                   placeholder="请输入11位手机号"
+                                   required
+                                   inputmode="numeric"
+                                   pattern="[0-9]*"
+                                   maxlength="11"
+                                   autocomplete="username">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="input-wrapper">
+                            <i class="ph ph-lock-key input-icon"></i>
+                            <input type="password" 
+                                   id="password" 
+                                   name="password" 
+                                   class="form-input" 
+                                   placeholder="请输入密码"
+                                   required
+                                   autocomplete="current-password">
+                            <button type="button" class="toggle-password" onclick="togglePassword()">
+                                <i class="ph ph-eye" id="toggleIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="login-btn" id="submitBtn">
+                        <i class="ph ph-sign-in"></i>
+                        <span>登录</span>
+                    </button>
+                </form>
+                
+                <div class="login-links">
+                    <a href="{{ url_for('auth.admin_login') }}">
+                        <i class="ph ph-shield-check"></i>
+                        管理员登录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast提示 -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // 密码可见性切换
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const icon = document.getElementById('toggleIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('ph-eye');
+                icon.classList.add('ph-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('ph-eye-slash');
+                icon.classList.add('ph-eye');
+            }
+        }
+        
+        // 显示Toast
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + (type || '');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+        
+        // 表单提交处理
+        const form = document.getElementById('loginForm');
+        const phoneInput = document.getElementById('phone');
+        const passwordInput = document.getElementById('password');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        // 强制数字输入
+        phoneInput.addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '').slice(0, 11);
+        });
+        
+        // 表单提交验证
+        form.addEventListener('submit', function(e) {
+            const phone = phoneInput.value.trim();
+            const password = passwordInput.value;
+            
+            if (!phone || phone.length < 11) {
+                e.preventDefault();
+                showToast('请输入正确的11位手机号', 'warning');
+                phoneInput.focus();
+                return false;
+            }
+            
+            if (!password) {
+                e.preventDefault();
+                showToast('请输入密码', 'warning');
+                passwordInput.focus();
+                return false;
+            }
+            
+            // 禁用按钮防止重复提交
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px;"></div><span>登录中...</span>';
+            
+            return true;
+        });
+        
+        // 修复软键盘收起后页面不恢复的问题
+        phoneInput.addEventListener('blur', function() {
+            setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
+        });
+        
+        passwordInput.addEventListener('blur', function() {
+            setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
+        });
+        
+        // 获取CSRF Token
+        window.getCsrfToken = function() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        };
+    </script>
+</body>
+</html>

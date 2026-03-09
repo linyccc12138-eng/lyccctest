@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#6B4E7C">
+    <title>管理员登录 - {{ site_name }}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    
+    <!-- Mobile Mucha CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        /* 管理员登录特定样式 */
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, 
+                var(--mucha-purple-dark) 0%, 
+                var(--mucha-purple) 50%,
+                var(--mucha-purple-light) 100%);
+            z-index: -1;
+        }
+        
+        .login-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(ellipse at 20% 10%, rgba(212, 175, 55, 0.2) 0%, transparent 40%),
+                radial-gradient(ellipse at 80% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 35%),
+                radial-gradient(ellipse at 40% 70%, rgba(168, 213, 186, 0.1) 0%, transparent 45%);
+        }
+        
+        .login-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: var(--space-lg);
+            padding-bottom: calc(var(--space-xl) * 2);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: var(--space-xl);
+            color: white;
+        }
+        
+        .login-logo {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto var(--space-lg);
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .login-logo i {
+            font-size: 48px;
+            color: white;
+        }
+        
+        .login-title {
+            font-family: var(--font-display);
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: var(--space-sm);
+        }
+        
+        .login-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .login-form-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: var(--radius-xl);
+            padding: var(--space-xl);
+            box-shadow: var(--shadow-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        
+        .login-form .form-group {
+            margin-bottom: var(--space-lg);
+        }
+        
+        .login-form .input-wrapper {
+            position: relative;
+        }
+        
+        .login-form .input-icon {
+            position: absolute;
+            left: var(--space-md);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--mucha-purple);
+            font-size: 20px;
+        }
+        
+        .login-form .form-input {
+            padding-left: 48px;
+            padding-right: 48px;
+            height: 52px;
+            border-radius: var(--radius-full);
+            border: 2px solid var(--mucha-purple-light);
+            background: white;
+        }
+        
+        .login-form .form-input:focus {
+            border-color: var(--mucha-purple);
+            box-shadow: 0 0 0 4px rgba(155, 124, 182, 0.2);
+        }
+        
+        .login-form .toggle-password {
+            position: absolute;
+            right: var(--space-md);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 20px;
+            background: none;
+            border: none;
+            padding: var(--space-sm);
+        }
+        
+        .login-form .toggle-password:active {
+            color: var(--mucha-purple);
+        }
+        
+        .login-btn {
+            width: 100%;
+            height: 52px;
+            border-radius: var(--radius-full);
+            font-size: 16px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--mucha-purple-dark) 0%, var(--mucha-purple) 100%);
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+            box-shadow: 0 4px 20px rgba(107, 78, 124, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .login-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .login-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        .login-links {
+            margin-top: var(--space-lg);
+            text-align: center;
+        }
+        
+        .login-links a {
+            color: var(--mucha-purple-dark);
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+        
+        .login-links a:active {
+            color: var(--mucha-purple);
+        }
+        
+        /* Toast提示 */
+        .toast {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: rgba(107, 78, 124, 0.95);
+            color: white;
+            padding: var(--space-md) var(--space-xl);
+            border-radius: var(--radius-full);
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 10000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .toast.warning {
+            background: rgba(212, 167, 38, 0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-page">
+        <!-- 背景 -->
+        <div class="login-bg"></div>
+        
+        <!-- 登录内容 -->
+        <div class="login-content">
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="ph ph-shield-check"></i>
+                </div>
+                <h1 class="login-title">管理员登录</h1>
+                <p class="login-subtitle">管理后台入口 ✨</p>
+            </div>
+            
+            <div class="login-form-wrapper">
+                <form class="login-form" id="loginForm" method="POST" action="{{ url_for('mobile.mobile_admin_login') }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="form-group">
+                        <div class="input-wrapper">
+                            <i class="ph ph-user input-icon"></i>
+                            <input type="text" 
+                                   id="username" 
+                                   name="username" 
+                                   class="form-input" 
+                                   placeholder="请输入管理员账号"
+                                   required
+                                   autocomplete="username">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="input-wrapper">
+                            <i class="ph ph-lock-key input-icon"></i>
+                            <input type="password" 
+                                   id="password" 
+                                   name="password" 
+                                   class="form-input" 
+                                   placeholder="请输入密码"
+                                   required
+                                   autocomplete="current-password">
+                            <button type="button" class="toggle-password" onclick="togglePassword()">
+                                <i class="ph ph-eye" id="toggleIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="login-btn" id="submitBtn">
+                        <i class="ph ph-sign-in"></i>
+                        <span>登录</span>
+                    </button>
+                </form>
+                
+                <div class="login-links">
+                    <a href="{{ url_for('auth.login') }}">
+                        <i class="ph ph-arrow-left"></i>
+                        返回用户登录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast提示 -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // 密码可见性切换
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const icon = document.getElementById('toggleIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('ph-eye');
+                icon.classList.add('ph-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('ph-eye-slash');
+                icon.classList.add('ph-eye');
+            }
+        }
+        
+        // 显示Toast
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + (type || '');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+        
+        // 表单提交处理
+        const form = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        form.addEventListener('submit', function(e) {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            
+            if (!username) {
+                e.preventDefault();
+                showToast('请输入管理员账号', 'warning');
+                usernameInput.focus();
+                return false;
+            }
+            
+            if (!password) {
+                e.preventDefault();
+                showToast('请输入密码', 'warning');
+                passwordInput.focus();
+                return false;
+            }
+            
+            // 禁用按钮防止重复提交
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px;"></div><span>登录中...</span>';
+            
+            return true;
+        });
+        
+        // 修复软键盘收起后页面不恢复的问题
+        usernameInput.addEventListener('blur', function() {
+            setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
+        });
+        
+        passwordInput.addEventListener('blur', function() {
+            setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
+        });
+    </script>
+</body>
+</html>

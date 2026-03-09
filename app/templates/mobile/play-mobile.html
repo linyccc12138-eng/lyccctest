@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+    <title>{{ chapter.title }} - {{ site_name }}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="{{ url_for('static', filename='vendor/phosphor-icons/index.js') }}"></script>
+    
+    <!-- TCPlayer -->
+    <link href="https://web.sdk.qcloud.com/player/tcplayer/release/v5.1.0/tcplayer.min.css" rel="stylesheet">
+    <script src="https://web.sdk.qcloud.com/player/tcplayer/release/v5.1.0/tcplayer.v5.1.0.min.js"></script>
+    
+    <!-- Mobile Mucha CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-mucha.css') }}">
+    
+    <style>
+        /* 播放页面特定样式 */
+        html, body {
+            background: var(--bg-primary);
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .play-page {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+        
+        /* 固定区域容器 - 导航栏 + 播放器 + 章节信息 */
+        .play-header-fixed {
+            flex-shrink: 0;
+            background: var(--bg-primary);
+            padding: calc(var(--top-nav-height) + 12px) 16px 0 16px;  /* 顶部为导航栏留空间，左右有间距 */
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 播放器容器 - 尺寸由JS根据视频比例动态计算并通过CSS设置 */
+        .player-wrapper {
+            position: relative;
+            width: 100%;
+            background: var(--bg-card);
+            border-radius: 16px;  /* 圆角 */
+            overflow: hidden;
+            margin: 0 auto 16px auto;
+            box-shadow: var(--shadow-card);
+            border: 2px solid var(--border-color);
+        }
+        
+        /* 播放器容器使用CSS设置尺寸 */
+        #player-container-id {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: block;
+        }
+        
+        /* 播放控制栏 */
+        .player-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: var(--space-md);
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            z-index: 10;
+        }
+        
+        .player-controls .control-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .player-controls .control-btn:active {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .player-controls .progress-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .player-controls .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .player-controls .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .player-controls .progress-fill {
+            height: 100%;
+            background: var(--mucha-gold);
+            border-radius: 2px;
+            transition: width 0.1s linear;
+        }
+        
+        /* 章节区域容器 - 章节信息 + 章节列表一体化 */
+        .chapters-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+            overflow: hidden;
+            margin: 0 16px 16px 16px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-soft);
+        }
+        
+        /* 章节信息 - 固定在章节区域顶部 */
+        .chapter-info {
+            background: var(--bg-card);
+            padding: 16px 20px;
+            border-radius: 16px 16px 0 0;
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chapter-title {
+            font-family: var(--font-display);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-xs);
+        }
+        
+        .chapter-meta {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        .chapter-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        /* 章节列表 - 可滚动区域 */
+        .chapters-section {
+            flex: 1;
+            background: var(--bg-card);
+            padding: 12px 16px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;  /* iOS 平滑滚动 */
+            border-radius: 0 0 16px 16px;
+        }
+        
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed var(--border-color);
+        }
+        
+        .section-title i {
+            color: var(--mucha-purple);
+            font-size: 18px;
+        }
+        
+        .chapter-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+        
+        .chapter-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: var(--bg-primary);
+            border-radius: 12px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+        }
+        
+        .chapter-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .chapter-item:active {
+            transform: scale(0.98);
+            background: var(--mucha-purple-light);
+        }
+        
+        .chapter-item.active {
+            background: linear-gradient(135deg, var(--mucha-purple-light) 0%, var(--mucha-mint-light) 100%);
+            border: 1px solid var(--mucha-purple);
+            box-shadow: 0 2px 8px rgba(155, 124, 182, 0.2);
+        }
+        
+        .chapter-item .chapter-number {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            background: var(--mucha-purple-light);
+            color: var(--mucha-purple-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        
+        .chapter-item.active .chapter-number {
+            background: var(--mucha-purple);
+            color: white;
+        }
+        
+        .chapter-item .chapter-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .chapter-item .chapter-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .chapter-item .chapter-duration {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        
+        .chapter-item .chapter-status {
+            width: 28px;
+            height: 28px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        .chapter-item.active .chapter-status {
+            background: var(--mucha-gold);
+            color: var(--mucha-purple-dark);
+        }
+        
+        .chapter-item .chapter-status.completed {
+            background: var(--mucha-mint-light);
+            color: #4A8B6F;
+        }
+        
+        /* 导航栏 - 使用主题色 */
+        .play-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--top-nav-height);
+            background: linear-gradient(135deg, var(--mucha-purple) 0%, var(--mucha-purple-dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-md);
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+            box-shadow: 0 2px 10px rgba(107, 78, 124, 0.2);
+        }
+        
+        .play-navbar.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .play-navbar .nav-back {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-full);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 20px;
+            backdrop-filter: blur(4px);
+            transition: all 0.3s ease;
+        }
+        
+        .play-navbar .nav-back:active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0.95);
+        }
+        
+        .play-navbar .nav-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: white;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* 全屏模式 */
+        .play-page.fullscreen .chapters-container {
+            display: none;
+        }
+        
+        .play-page.fullscreen .play-header-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+            padding: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .play-page.fullscreen .player-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 100vw;
+            max-height: 100vh;
+            border-radius: 0;
+        }
+        
+        .play-page.fullscreen #player-container-id {
+            width: 100%;
+            height: 100%;
+            aspect-ratio: auto;
+        }
+        
+        /* 全屏时视频填充样式 - 修复视频无法填满容器问题 */
+        /* 原生全屏模式下的样式 */
+        :fullscreen .player-wrapper,
+        :-webkit-full-screen .player-wrapper,
+        .player-wrapper:fullscreen,
+        .player-wrapper:-webkit-full-screen {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: none !important;
+            max-height: none !important;
+        }
+        
+        :fullscreen #player-container-id,
+        :-webkit-full-screen #player-container-id,
+        #player-container-id:fullscreen,
+        #player-container-id:-webkit-full-screen {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        :fullscreen video,
+        :-webkit-full-screen video,
+        .player-wrapper:fullscreen video,
+        .player-wrapper:-webkit-full-screen video,
+        #player-container-id:fullscreen video,
+        #player-container-id:-webkit-full-screen video,
+        .tcplayer:fullscreen video,
+        .tcplayer:-webkit-full-screen video,
+        .video-js:fullscreen video,
+        .video-js:-webkit-full-screen video {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            object-fit: contain !important;  /* 保持视频比例，不裁切 */
+            object-position: center center !important;
+        }
+        
+        /* 伪全屏模式下的样式（备用） */
+        .play-page.fullscreen .player-wrapper video,
+        .play-page.fullscreen #player-container-id video {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            object-fit: contain !important;
+        }
+        
+        /* 加载状态 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+        
+        .loading-overlay.hidden {
+            display: none;
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top-color: var(--mucha-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loading-text {
+            margin-top: var(--space-md);
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 错误提示 */
+        .error-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            padding: var(--space-xl);
+        }
+        
+        .error-overlay.show {
+            display: flex;
+        }
+        
+        .error-overlay i {
+            font-size: 48px;
+            color: var(--mucha-pink);
+            margin-bottom: var(--space-md);
+        }
+        
+        .error-overlay h3 {
+            color: white;
+            font-size: 16px;
+            margin-bottom: var(--space-sm);
+        }
+        
+        .error-overlay p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            text-align: center;
+        }
+        
+        .error-overlay .retry-btn {
+            margin-top: var(--space-lg);
+            padding: var(--space-sm) var(--space-xl);
+            background: var(--mucha-purple);
+            color: white;
+            border: none;
+            border-radius: var(--radius-full);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="play-page" id="playPage">
+        <!-- 导航栏 -->
+        <nav class="play-navbar" id="playNavbar">
+            <a href="{{ url_for('mobile.mobile_course_detail', course_id=course.id) }}" class="nav-back">
+                <i class="ph ph-arrow-left"></i>
+            </a>
+            <span class="nav-title">{{ chapter.title }}</span>
+            <div style="width: 40px;"></div>
+        </nav>
+        
+        <!-- 固定区域：播放器 -->
+        <div class="play-header-fixed">
+            <!-- 播放器区域 -->
+            <div class="player-wrapper" id="playerWrapper">
+                <!-- 播放器容器 - 必须为video标签 -->
+                <video id="player-container-id" preload="auto" playsinline webkit-playsinline></video>
+                
+                <!-- 加载状态 -->
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">正在加载视频...</div>
+                </div>
+                
+                <!-- 错误提示 -->
+                <div class="error-overlay" id="errorOverlay">
+                    <i class="ph ph-warning-circle"></i>
+                    <h3>视频加载失败</h3>
+                    <p>请检查网络连接后重试</p>
+                    <button class="retry-btn" onclick="reloadPlayer()">重新加载</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 章节区域：章节信息（固定）+ 章节列表（可滚动）-->
+        <div class="chapters-container">
+            <!-- 章节信息 - 固定在顶部 -->
+            <div class="chapter-info">
+                <h1 class="chapter-title">{{ chapter.title }}</h1>
+                <div class="chapter-meta">
+                    <span><i class="ph ph-book-open"></i> {{ course.title }}</span>
+                    <span><i class="ph ph-video"></i> {{ '1 个视频' if chapter.file_id else '0 个视频' }}</span>
+                </div>
+            </div>
+            
+            <!-- 章节列表 - 可滚动 -->
+            <div class="chapters-section">
+                <h2 class="section-title">
+                    <i class="ph ph-list-dashes"></i>
+                    课程章节
+                </h2>
+            <div class="chapter-list">
+                {% for ch in all_chapters %}
+                <a href="{{ url_for('mobile.mobile_play', chapter_id=ch.id) }}" 
+                   class="chapter-item {% if ch.id == chapter.id %}active{% endif %}">
+                    <div class="chapter-number">{{ loop.index }}</div>
+                    <div class="chapter-content">
+                        <div class="chapter-name">{{ ch.title }}</div>
+                        <div class="chapter-duration">{{ '1 个视频' if ch.file_id else '0 个视频' }}</div>
+                    </div>
+                    <div class="chapter-status {% if ch.id == chapter.id %}active{% elif ch.id in completed_chapters %}completed{% endif %}">
+                        {% if ch.id == chapter.id %}
+                        <i class="ph ph-play-fill"></i>
+                        {% elif ch.id in completed_chapters %}
+                        <i class="ph ph-check"></i>
+                        {% else %}
+                        <i class="ph ph-play-circle"></i>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 视频配置
+        const videoConfig = {
+            chapterId: {{ chapter.id }},
+            courseId: {{ course.id }},
+            fileId: '{{ chapter.file_id or '' }}',
+            videoWidth: {{ video_width if video_width is not none else 1280 }},
+            videoHeight: {{ video_height if video_height is not none else 720 }}
+        };
+        
+        // 播放器实例
+        let player = null;
+        let progressInterval = null;
+        let lastReportedProgress = 0;
+        let playerConfig = null;
+        
+        // 腾讯云配置
+        let tencentConfig = {};
+        
+        // 计算播放器尺寸，保持视频原始宽高比
+        function calculatePlayerSize() {
+            const wrapper = document.getElementById('playerWrapper');
+            if (!wrapper) return { width: 640, height: 360 };
+            
+            let videoWidth = videoConfig.videoWidth;
+            let videoHeight = videoConfig.videoHeight;
+            
+            // 如果没有视频分辨率信息，使用默认 16:9 比例
+            if (!videoWidth || !videoHeight) {
+                videoWidth = 16;
+                videoHeight = 9;
+            }
+            
+            // 计算视频宽高比
+            const aspectRatio = videoWidth / videoHeight;
+            
+            // 考虑四周的 padding (左右各 12px)
+            const horizontalPadding = 24;
+            const containerWidth = window.innerWidth - horizontalPadding;
+            
+            // 最大高度：视口的 45%，留出空间给章节信息和章节列表
+            const maxHeight = window.innerHeight * 0.45;
+            
+            // 根据可用空间计算最佳尺寸
+            let targetWidth = containerWidth;
+            let targetHeight = targetWidth / aspectRatio;
+            
+            // 如果高度超出限制，则根据高度计算宽度
+            if (targetHeight > maxHeight) {
+                targetHeight = maxHeight;
+                targetWidth = targetHeight * aspectRatio;
+            }
+            
+            // 确保尺寸不小于最小值
+            const minWidth = 280;
+            const minHeight = minWidth / aspectRatio;
+            if (targetWidth < minWidth) {
+                targetWidth = minWidth;
+                targetHeight = minWidth / aspectRatio;
+            }
+            
+            return {
+                width: Math.floor(targetWidth),
+                height: Math.floor(targetHeight)
+            };
+        }
+        
+        // 设置播放器容器尺寸
+        function setPlayerSize() {
+            const size = calculatePlayerSize();
+            // 修复：使用正确的元素ID 'playerWrapper' 而不是 'player-wrapper'
+            const wrapper = document.getElementById('playerWrapper');
+            const videoEl = document.getElementById('player-container-id');
+            
+            if (wrapper) {
+                wrapper.style.width = size.width + 'px';
+                wrapper.style.height = size.height + 'px';
+            }
+            
+            if (videoEl) {
+                videoEl.style.width = size.width + 'px';
+                videoEl.style.height = size.height + 'px';
+            }
+            
+            console.log('Player size set to:', size.width + 'x' + size.height, 
+                        '(aspect ratio:', videoConfig.videoWidth + ':' + videoConfig.videoHeight + ')');
+            
+            return size;
+        }
+        
+        // 获取播放器配置
+        async function loadPlayerConfig() {
+            try {
+                // 先获取腾讯云配置
+                const configResponse = await fetch('/config/api/tencent');
+                tencentConfig = await configResponse.json();
+                
+                // 再获取播放授权
+                const psignResponse = await fetch(`/play/${videoConfig.chapterId}/psign`, {
+                    headers: {
+                        'X-Device-Id': getDeviceId()
+                    }
+                });
+                const data = await psignResponse.json();
+                
+                if (data.success) {
+                    playerConfig = {
+                        appID: tencentConfig.app_id,
+                        fileID: videoConfig.fileId,
+                        psign: data.psign,
+                        licenseUrl: tencentConfig.license_url,
+                        licenseKey: tencentConfig.license_key
+                    };
+                    // 保存播放令牌
+                    playbackToken = data.session_token || '';
+                    initPlayer();
+                } else {
+                    showError(data.error || '获取播放配置失败');
+                }
+            } catch (error) {
+                console.error('获取播放配置失败:', error);
+                showError('获取播放配置失败');
+            }
+        }
+        
+        // 获取设备ID
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('device_id');
+            if (!deviceId) {
+                deviceId = 'mobile_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                localStorage.setItem('device_id', deviceId);
+            }
+            return deviceId;
+        }
+        
+        // 显示错误
+        function showError(message) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const errorOverlay = document.getElementById('errorOverlay');
+            loadingOverlay.classList.add('hidden');
+            errorOverlay.classList.add('show');
+            errorOverlay.querySelector('p').textContent = message;
+        }
+        
+        // 初始化播放器
+        function initPlayer() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const errorOverlay = document.getElementById('errorOverlay');
+            
+            if (!playerConfig) {
+                showError('播放器配置未加载');
+                return;
+            }
+            
+            // 计算并设置播放器容器尺寸
+            const playerSize = calculatePlayerSize();
+            setPlayerSize();
+            
+            loadingOverlay.classList.remove('hidden');
+            errorOverlay.classList.remove('show');
+            
+            try {
+                // 初始化 TCPlayer，使用计算好的尺寸
+                player = TCPlayer('player-container-id', {
+                    appID: playerConfig.appID,
+                    fileID: playerConfig.fileID,
+                    psign: playerConfig.psign,
+                    licenseUrl: playerConfig.licenseUrl || '',
+                    licenseKey: playerConfig.licenseKey || '',
+                    width: playerSize.width,
+                    height: playerSize.height,
+                    autoplay: false,
+                    preload: 'auto',
+                    fakeFullscreen: false,  // 禁用伪全屏，使用浏览器原生全屏API
+                    hlsConfig: {
+                        debug: false,
+                        enableWorker: true
+                    },
+                    controlBar: {
+                        playToggle: true,
+                        progressControl: true,
+                        currentTimeDisplay: true,
+                        durationDisplay: true,
+                        timeDivider: true,
+                        playbackRateMenuButton: false,
+                        volumePanel: true,
+                        fullscreenToggle: true,
+                        fullscreenRotate: true  // 全屏时自动横屏旋转
+                    },
+                    plugins: {
+                        ProgressMarker: true
+                    }
+                });
+                
+                // 监听播放器事件
+                player.on('loadedmetadata', function() {
+                    loadingOverlay.classList.add('hidden');
+                    console.log('视频元数据加载完成');
+                });
+                
+                player.on('play', function() {
+                    startProgressTracking();
+                });
+                
+                player.on('pause', function() {
+                    stopProgressTracking();
+                    reportProgress('pause');
+                });
+                
+                player.on('ended', function() {
+                    stopProgressTracking();
+                    reportProgress('ended', true);
+                });
+                
+                player.on('error', function(e) {
+                    console.error('播放器错误:', e);
+                    loadingOverlay.classList.add('hidden');
+                    errorOverlay.classList.add('show');
+                });
+                
+                player.on('fullscreenchange', function(e) {
+                    const playPage = document.getElementById('playPage');
+                    if (e.detail.isFullscreen) {
+                        playPage.classList.add('fullscreen');
+                        console.log('进入全屏模式');
+                        
+                        // 尝试锁定横屏（方案1）
+                        if (screen.orientation && screen.orientation.lock) {
+                            screen.orientation.lock('landscape').then(function() {
+                                console.log('屏幕方向已锁定为横屏');
+                            }).catch(function(err) {
+                                console.log('无法锁定屏幕方向（可能在iOS或需要用户交互）:', err.message);
+                            });
+                        } else {
+                            console.log('当前浏览器不支持屏幕方向锁定API');
+                        }
+                    } else {
+                        playPage.classList.remove('fullscreen');
+                        console.log('退出全屏模式');
+                        
+                        // 解锁屏幕方向
+                        if (screen.orientation && screen.orientation.unlock) {
+                            screen.orientation.unlock();
+                            console.log('屏幕方向已解锁');
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('初始化播放器失败:', error);
+                loadingOverlay.classList.add('hidden');
+                errorOverlay.classList.add('show');
+            }
+            
+            // 监听窗口大小变化，动态调整播放器容器尺寸
+            window.addEventListener('resize', function() {
+                const newSize = calculatePlayerSize();
+                // 修复：使用正确的元素ID 'playerWrapper' 而不是 'player-wrapper'
+                const wrapper = document.getElementById('playerWrapper');
+                const videoEl = document.getElementById('player-container-id');
+                
+                // 更新容器尺寸
+                if (wrapper) {
+                    wrapper.style.width = newSize.width + 'px';
+                    wrapper.style.height = newSize.height + 'px';
+                }
+                if (videoEl) {
+                    videoEl.style.width = newSize.width + 'px';
+                    videoEl.style.height = newSize.height + 'px';
+                }
+                
+                // 通知 TCPlayer 更新尺寸
+                if (player && player.dimension) {
+                    player.dimension(newSize.width, newSize.height);
+                }
+            });
+            
+            // 方案2：监听设备方向变化，横屏时自动进入全屏，竖屏时自动退出全屏
+            window.addEventListener('orientationchange', function() {
+                // 使用setTimeout确保 orientationchange 事件完成后再检测
+                setTimeout(function() {
+                    const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+                    const isFullscreen = player && player.isFullscreen && player.isFullscreen();
+                    
+                    console.log('设备方向变化，当前方向:', isLandscape ? '横屏' : '竖屏', '全屏状态:', isFullscreen);
+                    
+                    if (isLandscape) {
+                        // 横屏时自动进入全屏（如果不在全屏状态）
+                        if (!isFullscreen && player && player.requestFullscreen) {
+                            console.log('检测到横屏，自动进入全屏');
+                            player.requestFullscreen();
+                        }
+                    } else {
+                        // 竖屏时自动退出全屏（如果在全屏状态）
+                        if (isFullscreen && player && player.exitFullscreen) {
+                            console.log('检测到竖屏，自动退出全屏');
+                            player.exitFullscreen();
+                        }
+                    }
+                }, 100);
+            });
+        }
+        
+        // 重新加载播放器
+        function reloadPlayer() {
+            if (player) {
+                player.dispose();
+                player = null;
+            }
+            initPlayer();
+        }
+        
+        // 开始进度跟踪
+        function startProgressTracking() {
+            if (progressInterval) return;
+            progressInterval = setInterval(function() {
+                if (player && player.duration()) {
+                    const currentTime = player.currentTime();
+                    const duration = player.duration();
+                    const progress = (currentTime / duration) * 100;
+                    
+                    // 每5%报告一次进度
+                    if (progress - lastReportedProgress >= 5) {
+                        reportProgress('timeupdate');
+                        lastReportedProgress = progress;
+                    }
+                }
+            }, 5000);
+        }
+        
+        // 停止进度跟踪
+        function stopProgressTracking() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        }
+        
+        // 播放令牌
+        let playbackToken = '';
+        
+        // 报告进度
+        function reportProgress(eventType = 'timeupdate', keepalive = false) {
+            if (!player || player.duration() <= 0) return Promise.resolve();
+            
+            const currentTime = player.currentTime();
+            const duration = player.duration();
+            const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+            const playbackRate = player.playbackRate ? player.playbackRate() : 1;
+            
+            return fetch(`/play/${videoConfig.chapterId}/progress`, {
+                method: 'POST',
+                keepalive: !!keepalive,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': getCsrfToken(),
+                    'X-Device-Id': getDeviceId(),
+                    'X-Playback-Token': playbackToken
+                },
+                body: JSON.stringify({
+                    progress: progress,
+                    duration: Math.floor(currentTime),
+                    playback_rate: playbackRate,
+                    event_type: eventType
+                })
+            }).then(response => {
+                if (response.status === 409) {
+                    if (player && player.pause) {
+                        player.pause();
+                    }
+                    alert('当前设备会话已失效，请刷新页面重新播放');
+                }
+            }).catch(error => console.error('报告进度失败:', error));
+        }
+        
+        // 获取CSRF Token
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        }
+        
+        // 确保 TCPlayer 加载完成后再初始化
+        function waitForTCPlayer(callback, maxAttempts) {
+            maxAttempts = maxAttempts || 100;  // 增加最大尝试次数
+            var attempts = 0;
+            
+            function check() {
+                attempts++;
+                if (typeof TCPlayer !== 'undefined') {
+                    console.log('TCPlayer 加载成功');
+                    callback();
+                } else if (attempts < maxAttempts) {
+                    setTimeout(check, 100);
+                } else {
+                    console.error('TCPlayer 加载超时');
+                    // 检查是否是脚本加载失败
+                    const tcpScript = document.querySelector('script[src*="tcplayer"]');
+                    if (!tcpScript) {
+                        showError('视频播放器脚本未找到，请检查网络连接');
+                    } else {
+                        showError('视频播放器加载超时，请刷新页面重试');
+                    }
+                }
+            }
+            check();
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查TCPlayer脚本是否已经加载
+            if (typeof TCPlayer !== 'undefined') {
+                console.log('TCPlayer 已加载');
+                loadPlayerConfig();
+            } else {
+                console.log('等待TCPlayer加载...');
+                waitForTCPlayer(function() {
+                    loadPlayerConfig();
+                });
+            }
+        });
+        
+        // 页面卸载时报告进度
+        window.addEventListener('beforeunload', function() {
+            stopProgressTracking();
+            reportProgress('unload', true);
+        });
+        
+        // 隐藏导航栏（点击播放器区域）
+        let navbarTimeout;
+        const playerWrapper = document.getElementById('playerWrapper');
+        const playNavbar = document.getElementById('playNavbar');
+        
+        playerWrapper.addEventListener('click', function() {
+            playNavbar.classList.remove('hidden');
+            clearTimeout(navbarTimeout);
+            navbarTimeout = setTimeout(function() {
+                if (player && player.paused && player.paused() === false) {
+                    playNavbar.classList.add('hidden');
+                }
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
